@@ -1,7 +1,6 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
+import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
 import AuthLayout from "@/components/layout/AuthLayout";
 
 import { z } from "zod";
@@ -39,9 +38,12 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const Signup = () => {
-  const { signup, isLoading } = useAuth();
-  const [error, setError] = useState<string | null>(null);
-  
+  const signup = useAuthStore((state) => state.signup);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const navigate = useNavigate(); // For navigation
+  const [error, setError] = useState<string | null>(null); // Local form error
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Local submitting state
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -54,14 +56,19 @@ const Signup = () => {
   
   const onSubmit = async (data: FormData) => {
     setError(null);
+    setIsSubmitting(true);
     try {
       await signup(data.username, data.email, data.password);
+      navigate("/dashboard"); // Navigate on successful signup
     } catch (err) {
+      // Error is already toasted by the authStore.
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("An unknown error occurred");
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -87,7 +94,7 @@ const Signup = () => {
                     <Input
                       placeholder="yourusername"
                       {...field}
-                      disabled={isLoading}
+                      disabled={isSubmitting || isAuthLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -106,7 +113,7 @@ const Signup = () => {
                       type="email"
                       placeholder="you@example.com"
                       {...field}
-                      disabled={isLoading}
+                      disabled={isSubmitting || isAuthLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -125,7 +132,7 @@ const Signup = () => {
                       type="password"
                       placeholder="••••••••"
                       {...field}
-                      disabled={isLoading}
+                      disabled={isSubmitting || isAuthLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -144,7 +151,7 @@ const Signup = () => {
                       type="password"
                       placeholder="••••••••"
                       {...field}
-                      disabled={isLoading}
+                      disabled={isSubmitting || isAuthLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -161,9 +168,9 @@ const Signup = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isSubmitting || isAuthLoading}
             >
-              {isLoading ? (
+              {(isSubmitting || isAuthLoading) ? (
                 "Creating account..."
               ) : (
                 <>

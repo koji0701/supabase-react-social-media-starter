@@ -1,7 +1,6 @@
-
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useFriends } from "@/contexts/FriendsContext";
+import { useAuthStore } from "@/stores/authStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
 
 import { Button } from "@/components/ui/button";
@@ -11,8 +10,9 @@ import { Calendar, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
-  const { profile, updateWeeklyCount } = useAuth();
-  const { friends } = useFriends();
+  const profile = useAuthStore((state) => state.profile);
+  const updateWeeklyCount = useAuthStore((state) => state.updateWeeklyCount);
+  const friends = useFriendsStore((state) => state.friends);
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -32,17 +32,14 @@ const Dashboard = () => {
       setIsConfirming(false);
     } else {
       setIsConfirming(true);
-      // Reset after 3 seconds if not confirmed
       setTimeout(() => setIsConfirming(false), 3000);
     }
   };
 
-  // Get top 3 friends for leaderboard preview
   const topFriends = [...friends]
     .sort((a, b) => a.weeklyCount - b.weeklyCount)
     .slice(0, 3);
 
-  // Calculate streak statistics
   const streakDays = profile.streakDays;
   const maxStreakDays = 30; // Example max for progress bar
 
@@ -56,7 +53,6 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Main tracking button */}
         <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
           <CardContent className="pt-6">
             <div className="text-center space-y-6">
@@ -84,7 +80,6 @@ const Dashboard = () => {
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Current streak */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -100,7 +95,6 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Leaderboard preview */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Leaderboard</CardTitle>
