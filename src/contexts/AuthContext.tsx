@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
@@ -32,41 +31,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Start true
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check for existing session and setup auth state listener
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        const currentUser = currentSession?.user ?? null;
+        setUser(currentUser);
         
-        if (currentSession?.user) {
-          setIsLoading(true);
-          await fetchUserProfile(currentSession.user.id);
-          setIsLoading(false);
+        if (currentUser) {
+          setIsLoading(true); // Set loading before fetching profile
+          await fetchUserProfile(currentUser.id);
+          setIsLoading(false); // Clear loading after fetching profile
         } else {
           setProfile(null);
+          setIsLoading(false); // Clear loading if no user (e.g., logout)
         }
       }
     );
 
-    // THEN check for existing session
     const initializeAuth = async () => {
       setIsLoading(true);
-      
       const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        await fetchUserProfile(currentSession.user.id);
+      // onAuthStateChange will handle setting user, profile, and final isLoading state
+      // if there's a session. If no session, onAuthStateChange handles it too.
+      // This call primarily ensures the session is checked.
+      // The crucial part is that isLoading is false after all checks.
+      if (!currentSession) {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     initializeAuth();
@@ -76,7 +72,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Fetch user profile from Supabase
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -87,6 +82,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) {
         console.error("Error fetching profile:", error);
+        toast({
+          title: "Error loading profile",
+          description: error.message || "Could not load your user profile. Please try again later.",
+          variant: "destructive",
+        });
+        setProfile(null); // Explicitly set to null on error
         return;
       }
       
@@ -99,24 +100,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           streakDays: data.streak_days,
           lastRelapse: data.last_relapse
         });
+      } else {
+        // This case should ideally be caught by .single() if no data, 
+        // which would make 'error' non-null.
+        console.error("No profile data returned for user:", userId);
+        toast({
+          title: "Profile not found",
+          description: "Your user profile data could not be found.",
+          variant: "destructive",
+        });
+        setProfile(null);
       }
-    } catch (error) {
-      console.error("Unexpected error fetching profile:", error);
+    } catch (e) { 
+      console.error("Unexpected error fetching profile:", e);
+      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+      toast({
+        title: "Error loading profile",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      setProfile(null); 
     }
   };
 
-  // Login function
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    
+    setIsLoading(true); 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (error) throw error;
       
+      // onAuthStateChange will handle fetching profile and setting final isLoading state
       toast({
         title: "Logged in successfully",
         description: "Welcome back!",
@@ -129,17 +146,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: error?.message || "Invalid credentials",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Ensure loading is false on login failure
     }
+    // isLoading will be set to false by onAuthStateChange after profile fetch or if no user
   };
 
-  // Signup function
   const signup = async (username: string, email: string, password: string) => {
     setIsLoading(true);
-    
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -151,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       
+      // onAuthStateChange will handle fetching profile and setting final isLoading state
       toast({
         title: "Signup successful",
         description: "Welcome to GoonSquad!",
@@ -163,18 +179,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: error?.message || "An unknown error occurred",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Ensure loading is false on signup failure
     }
   };
 
-  // Logout function
   const logout = async () => {
-    setIsLoading(true);
-    
+    setIsLoading(true); // Set loading true before sign out
     try {
       await supabase.auth.signOut();
-      
+      // onAuthStateChange will set user to null, profile to null, and isLoading to false.
       toast({
         title: "Logged out",
         description: "You have been logged out successfully.",
@@ -187,18 +200,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         description: error?.message || "An unknown error occurred",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Ensure loading is false on logout failure
     }
   };
   
-  // Update weekly count (track relapse)
   const updateWeeklyCount = async () => {
     if (!user) return;
     
     try {
-      // Call the database function to increment count and reset streak
-      const { data, error } = await supabase.rpc(
+      const { error } = await supabase.rpc(
         'increment_relapse_count', 
         { p_user_id: user.id }
       );
@@ -206,7 +216,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       
       // Refetch the profile to get updated data
+      // setIsLoading(true); // Optional: indicate loading for profile refresh
       await fetchUserProfile(user.id);
+      // setIsLoading(false); // Optional: clear loading
       
       toast({
         title: "Relapse logged",
@@ -230,7 +242,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         signup,
         logout,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user, // Based on Supabase user object
         isLoading,
         updateWeeklyCount
       }}

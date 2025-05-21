@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,8 +27,9 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const { login, isLoading } = useAuth();
+  const { login, isLoading: isAuthLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -41,14 +41,20 @@ const Login = () => {
   
   const onSubmit = async (data: FormData) => {
     setError(null);
+    setIsSubmitting(true);
     try {
       await login(data.email, data.password);
     } catch (err) {
+      // The login function in AuthContext already shows a toast for errors.
+      // Setting local error state might be redundant if toasts are preferred.
+      // However, keeping it for now in case specific inline error display is desired.
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("An unknown error occurred");
+        setError("An unknown error occurred during login.");
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -75,7 +81,7 @@ const Login = () => {
                       type="email"
                       placeholder="you@example.com"
                       {...field}
-                      disabled={isLoading}
+                      disabled={isSubmitting || isAuthLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -94,7 +100,7 @@ const Login = () => {
                       type="password"
                       placeholder="••••••••"
                       {...field}
-                      disabled={isLoading}
+                      disabled={isSubmitting || isAuthLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -111,9 +117,9 @@ const Login = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isSubmitting || isAuthLoading}
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 "Signing in..."
               ) : (
                 <>
