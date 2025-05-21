@@ -1,10 +1,9 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext"; // Import useAuth
 import { FriendsProvider } from "@/contexts/FriendsContext";
 
 // Pages
@@ -19,7 +18,18 @@ import NotFound from "./pages/NotFound";
 
 // Auth-protected route
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const isAuthenticated = localStorage.getItem("sb-ampnkxaegqevdmmwycxh-auth-token") !== null;
+  const { isAuthenticated, isLoading } = useAuth(); // Use AuthContext
+
+  if (isLoading) {
+    // Show a loading indicator while auth state is being determined
+    return (
+      <div className="flex items-center justify-center h-screen w-screen bg-goon-deep-bg">
+        <p className="text-lg text-foreground">Loading session...</p>
+        {/* You could add a spinner component here */}
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
