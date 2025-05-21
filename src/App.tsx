@@ -19,7 +19,7 @@ import NotFound from "./pages/NotFound";
 
 // Auth-protected route
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const isAuthenticated = localStorage.getItem("goonSquad_user") !== null;
+  const isAuthenticated = localStorage.getItem("sb-ampnkxaegqevdmmwycxh-auth-token") !== null;
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }

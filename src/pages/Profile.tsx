@@ -16,12 +16,17 @@ import {
 } from "lucide-react";
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   
-  if (!user) {
-    navigate("/");
-    return null;
+  if (!profile) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <p>Loading your profile...</p>
+        </div>
+      </MainLayout>
+    );
   }
   
   const maxStreakDays = 30; // Example max for progress bar
@@ -48,11 +53,11 @@ const Profile = () => {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center md:space-x-6 text-center md:text-left">
               <div className="flex items-center justify-center h-24 w-24 rounded-full bg-goon-purple/20 text-goon-purple text-4xl font-medium mb-4 md:mb-0">
-                {user.username.charAt(0).toUpperCase()}
+                {profile.username.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 className="text-2xl font-bold">{user.username}</h2>
-                <p className="text-muted-foreground">{user.email}</p>
+                <h2 className="text-2xl font-bold">{profile.username}</h2>
+                <p className="text-muted-foreground">{profile.email}</p>
                 
                 <div className="flex items-center mt-2 justify-center md:justify-start">
                   <Award className="h-4 w-4 mr-1 text-goon-purple" />
@@ -74,14 +79,14 @@ const Profile = () => {
             <CardContent className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Days Clean</span>
-                <span className="font-medium">{user.streakDays} days</span>
+                <span className="font-medium">{profile.streakDays} days</span>
               </div>
-              <Progress value={(user.streakDays / maxStreakDays) * 100} className="h-2" />
+              <Progress value={(profile.streakDays / maxStreakDays) * 100} className="h-2" />
               
               <div className="pt-4">
                 <div className="flex justify-between text-sm">
                   <span>Last relapse</span>
-                  <span>{formatDate(user.lastRelapse)}</span>
+                  <span>{formatDate(profile.lastRelapse)}</span>
                 </div>
               </div>
             </CardContent>
@@ -98,7 +103,7 @@ const Profile = () => {
               <div className="text-center py-4">
                 <span className="text-muted-foreground block">Total Relapses</span>
                 <span className="text-4xl font-bold text-goon-purple block mt-2">
-                  {user.weeklyCount}
+                  {profile.weeklyCount}
                 </span>
                 <Button 
                   variant="link" 

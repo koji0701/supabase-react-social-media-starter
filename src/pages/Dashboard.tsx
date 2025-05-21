@@ -11,19 +11,24 @@ import { Calendar, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
-  const { user, updateWeeklyCount } = useAuth();
+  const { profile, updateWeeklyCount } = useAuth();
   const { friends } = useFriends();
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
 
-  if (!user) {
-    navigate("/");
-    return null;
+  if (!profile) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <p>Loading your dashboard...</p>
+        </div>
+      </MainLayout>
+    );
   }
 
-  const handleRelapseClick = () => {
+  const handleRelapseClick = async () => {
     if (isConfirming) {
-      updateWeeklyCount();
+      await updateWeeklyCount();
       setIsConfirming(false);
     } else {
       setIsConfirming(true);
@@ -38,7 +43,7 @@ const Dashboard = () => {
     .slice(0, 3);
 
   // Calculate streak statistics
-  const streakDays = user.streakDays;
+  const streakDays = profile.streakDays;
   const maxStreakDays = 30; // Example max for progress bar
 
   return (
@@ -58,7 +63,7 @@ const Dashboard = () => {
               <div className="space-y-2">
                 <h2 className="text-xl font-medium">This Week's Count</h2>
                 <p className="text-4xl font-bold text-goon-purple">
-                  {user.weeklyCount}
+                  {profile.weeklyCount}
                 </p>
               </div>
               
