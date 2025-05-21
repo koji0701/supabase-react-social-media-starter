@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
@@ -8,19 +8,113 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/use-toast";
 
 const Dashboard = () => {
+  console.log("🔄 [DASHBOARD] Rendering Dashboard component");
+  
+  // Fix: Use individual selectors instead of object destructuring to avoid reference equality issues
   const profile = useAuthStore((state) => state.profile);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
   const updateWeeklyCount = useAuthStore((state) => state.updateWeeklyCount);
+  
+  const refreshFriends = useFriendsStore((state) => state.refreshFriends);
   const friends = useFriendsStore((state) => state.friends);
+  
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasFetchedFriends, setHasFetchedFriends] = useState(false);
+  
+  // Track component mount - deliberately using empty deps for mount/unmount only
+  useEffect(() => {
+    console.log("🔄 [DASHBOARD] Component mounted with auth state:", {
+      isAuthenticated,
+      isLoading,
+      hasUser: !!user,
+      hasProfile: !!profile,
+      userEmail: user?.email,
+      username: profile?.username
+    });
+    
+    return () => {
+      console.log("🔄 [DASHBOARD] Component unmounting");
+    };
+  // We intentionally want this to run only once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  if (!profile) {
+  // Handle friends loading and profile display
+  useEffect(() => {
+    console.log("🔄 [DASHBOARD] Auth state change in Dashboard:", { 
+      hasProfile: !!profile, 
+      isLoading,
+      isAuthenticated,
+      friendsCount: friends.length 
+    });
+    
+    if (profile) {
+      console.log("👤 [DASHBOARD] Profile data:", {
+        id: profile.id,
+        username: profile.username,
+        email: profile.email,
+        weeklyCount: profile.weeklyCount,
+        streakDays: profile.streakDays
+      });
+    }
+    
+    // Load friends data when the dashboard loads
+    const loadFriends = async () => {
+      // Only fetch friends once per component instance
+      if (hasFetchedFriends) return;
+      
+      try {
+        console.log("👥 [DASHBOARD] Loading friends data");
+        setLoadingFriends(true);
+        await refreshFriends();
+        setHasFetchedFriends(true);
+        console.log(`👥 [DASHBOARD] Friends loaded: ${friends.length} friends`);
+      } catch (err) {
+        console.error("👥 [DASHBOARD] Error loading friends:", err);
+        // Silently fail - we don't want to block the dashboard for this
+      } finally {
+        setLoadingFriends(false);
+      }
+    };
+    
+    if (profile && !isLoading) {
+      console.log("👥 [DASHBOARD] Profile ready, loading friends data");
+      loadFriends();
+    } else {
+      console.log("👥 [DASHBOARD] Not loading friends, waiting for profile", { 
+        hasProfile: !!profile, 
+        isLoading 
+      });
+    }
+  }, [profile, isLoading, refreshFriends, friends.length, hasFetchedFriends, isAuthenticated]);
+
+  if (isLoading || !profile) {
+    console.log("🔄 [DASHBOARD] Rendering loading state", { isLoading, hasProfile: !!profile });
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-96">
-          <p>Loading your dashboard...</p>
+          <p className="text-lg">Loading your dashboard...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+  
+  if (error) {
+    console.log("🔄 [DASHBOARD] Rendering error state:", error);
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+          <p className="text-lg text-destructive">Error loading dashboard</p>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
         </div>
       </MainLayout>
     );
@@ -28,21 +122,35 @@ const Dashboard = () => {
 
   const handleRelapseClick = async () => {
     if (isConfirming) {
-      await updateWeeklyCount();
+      console.log("📊 [DASHBOARD] Confirming relapse");
+      try {
+        await updateWeeklyCount();
+      } catch (err) {
+        console.error("📊 [DASHBOARD] Error updating relapse count:", err);
+        toast({
+          title: "Error updating count",
+          description: "Please try again later",
+          variant: "destructive"
+        });
+      }
       setIsConfirming(false);
     } else {
+      console.log("📊 [DASHBOARD] Initiating relapse confirmation");
       setIsConfirming(true);
       setTimeout(() => setIsConfirming(false), 3000);
     }
   };
 
-  const topFriends = [...friends]
+  const topFriends = [...(friends || [])]
     .sort((a, b) => a.weeklyCount - b.weeklyCount)
     .slice(0, 3);
+  
+  console.log(`👥 [DASHBOARD] Top friends loaded: ${topFriends.length}`);
 
-  const streakDays = profile.streakDays;
+  const streakDays = profile.streakDays || 0;
   const maxStreakDays = 30; // Example max for progress bar
 
+  console.log("🔄 [DASHBOARD] Rendering main dashboard UI");
   return (
     <MainLayout>
       <div className="space-y-8 animate-fade-in">
@@ -107,7 +215,12 @@ const Dashboard = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              {topFriends.length > 0 ? (
+              {loadingFriends && (
+                <div className="text-center text-muted-foreground py-2">
+                  Loading friends...
+                </div>
+              )}
+              {!loadingFriends && topFriends.length > 0 ? (
                 <div className="space-y-2">
                   {topFriends.map((friend, index) => (
                     <div key={friend.id} className="flex items-center justify-between">
@@ -119,7 +232,7 @@ const Dashboard = () => {
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : !loadingFriends && (
                 <div className="text-center text-muted-foreground py-2">
                   Add friends to see the leaderboard
                 </div>
