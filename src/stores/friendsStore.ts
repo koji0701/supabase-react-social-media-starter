@@ -46,10 +46,14 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
 
   refreshFriends: async () => {
     const user = useAuthStore.getState().user;
-    if (!user) return;
+    if (!user) {
+      console.log("Cannot refresh friends: no authenticated user");
+      return;
+    }
     
     set({ loading: true });
     try {
+      console.log("Fetching friends for user:", user.id);
       const { data: sentFriendships, error: sentError } = await supabase
         .from('friendships')
         .select('friend_id, profiles!friendships_friend_id_fkey(*)')
@@ -64,14 +68,19 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
         .eq('status', 'accepted');
       if (receivedError) throw receivedError;
       
+      console.log("Friend data fetched:", { 
+        sentCount: sentFriendships?.length || 0, 
+        receivedCount: receivedFriendships?.length || 0 
+      });
+      
       const combinedFriends = [
-        ...sentFriendships.map(f => ({
+        ...(sentFriendships || []).map(f => ({
           id: f.friend_id,
           username: f.profiles.username,
           weeklyCount: f.profiles.weekly_count,
           streakDays: f.profiles.streak_days
         })),
-        ...receivedFriendships.map(f => ({
+        ...(receivedFriendships || []).map(f => ({
           id: f.user_id,
           username: f.profiles.username,
           weeklyCount: f.profiles.weekly_count,
@@ -82,6 +91,8 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
     } catch (error) {
       console.error('Error fetching friends:', error);
       toast({ title: 'Error', description: 'Failed to load friends', variant: 'destructive' });
+      // Set empty array to prevent undefined errors
+      set({ friends: [] });
     } finally {
       set({ loading: false });
     }
@@ -274,12 +285,14 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
 
 // Subscribe to authStore to react to user login/logout
 useAuthStore.subscribe(
-  (state) => state.user,
-  (authUser, prevAuthUser) => {
-    if (authUser && !prevAuthUser) { // User logged in
+  (state, prevState) => {
+    const currentUser = state.user;
+    const previousUser = prevState.user;
+
+    if (currentUser && !previousUser) { // User logged in
       useFriendsStore.getState().refreshFriends();
       useFriendsStore.getState().refreshFriendRequests();
-    } else if (!authUser && prevAuthUser) { // User logged out
+    } else if (!currentUser && previousUser) { // User logged out
       useFriendsStore.setState(initialState); // Reset to initial state
     }
   }

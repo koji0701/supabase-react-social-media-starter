@@ -1,5 +1,4 @@
-
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
 
@@ -9,7 +8,8 @@ import {
   Users,
   List,
   User,
-  LogOut
+  LogOut,
+  RefreshCcw
 } from "lucide-react";
 
 interface MainLayoutProps {
@@ -17,14 +17,52 @@ interface MainLayoutProps {
 }
 
 const MainLayout = ({ children }: MainLayoutProps) => {
-  const { profile, logout: authLogout } = useAuthStore((state) => ({ // Get profile for username display
-    profile: state.profile,
-    logout: state.logout,
-  }));
+  console.log("🔄 [LAYOUT] MainLayout component rendering");
+  
+  // Fix: Use individual selectors instead of object destructuring to avoid reference equality issues
+  const profile = useAuthStore(state => state.profile);
+  const authLogout = useAuthStore(state => state.logout);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useAuthStore(state => state.user);
+  const fetchUserProfile = useAuthStore(state => state.fetchUserProfile);
+  
+  // Add a state to track profile fetching attempts to avoid loops
+  const [hasAttemptedProfileFetch, setHasAttemptedProfileFetch] = useState(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
+  
+  useEffect(() => {
+    console.log(`🔄 [LAYOUT] MainLayout mounted at path: ${location.pathname}`);
+    console.log("🔄 [LAYOUT] Auth state in MainLayout:", { 
+      isAuthenticated, 
+      hasProfile: !!profile,
+      hasUser: !!user,
+      userId: user?.id,
+      profileData: profile ? { 
+        id: profile.id,
+        username: profile.username,
+        email: profile.email
+      } : null
+    });
+    
+    // If authenticated but no profile, try to fetch it only once
+    if (isAuthenticated && user && !profile && !hasAttemptedProfileFetch) {
+      console.log("🔄 [LAYOUT] Has user but no profile, attempting to fetch profile");
+      setHasAttemptedProfileFetch(true);
+      fetchUserProfile(user.id).catch(err => {
+        console.error("🔄 [LAYOUT] Error fetching profile:", err);
+      });
+    }
+    
+    return () => {
+      console.log(`🔄 [LAYOUT] MainLayout unmounting from path: ${location.pathname}`);
+    };
+  }, [location.pathname, profile, isAuthenticated, user, fetchUserProfile, hasAttemptedProfileFetch]);
 
   const isActive = (path: string) => location.pathname === path;
+  
+  console.log(`🔄 [LAYOUT] Current path: ${location.pathname}`);
 
   const navItems = [
     {
@@ -50,15 +88,54 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   ];
 
   const handleLogout = async () => {
+    console.log("🚪 [LAYOUT] Logout button clicked");
     try {
       await authLogout();
+      console.log("🚪 [LAYOUT] Logout successful, navigating to login");
       navigate("/"); // Navigate to login page after logout
     } catch (error) {
       // Error is already handled and toasted by the authStore
-      console.error("Logout failed:", error);
+      console.error("🚪 [LAYOUT] Logout failed:", error);
+    }
+  };
+  
+  const handleRefreshProfile = async () => {
+    console.log("🔄 [LAYOUT] Manual profile refresh requested");
+    if (user) {
+      try {
+        await fetchUserProfile(user.id);
+      } catch (err) {
+        console.error("🔄 [LAYOUT] Manual profile refresh failed:", err);
+      }
     }
   };
 
+  if (!profile) {
+    console.log("⚠️ [LAYOUT] No profile data available in MainLayout!");
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
+        <div className="text-center space-y-4 p-6 bg-goon-charcoal/30 rounded-lg border border-goon-charcoal/50 max-w-md">
+          <h2 className="text-xl font-semibold">Profile Not Found</h2>
+          <p className="text-muted-foreground">
+            Your profile information couldn't be loaded. This could be due to a temporary issue.
+          </p>
+          <div className="flex flex-col gap-2 mt-4">
+            <Button onClick={handleRefreshProfile}>
+              <RefreshCcw className="w-4 h-4 mr-2" /> Refresh Profile
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/")}>
+              Back to Login
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" /> Logout
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  console.log(`✅ [LAYOUT] Rendering layout with profile: ${profile.username}`);
 
   return (
     <div className="flex h-screen bg-goon-deep-bg">
