@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 const Friends = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const { 
     friends, 
     friendRequests, 
@@ -28,7 +28,8 @@ const Friends = () => {
     acceptFriendRequest, 
     declineFriendRequest, 
     removeFriend,
-    searchUsers
+    searchUsers,
+    loading
   } = useFriends();
   const navigate = useNavigate();
   
@@ -36,9 +37,14 @@ const Friends = () => {
   const [searchResults, setSearchResults] = useState<{id: string, username: string}[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   
-  if (!user) {
-    navigate("/");
-    return null;
+  if (!profile) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <p>Loading your friends...</p>
+        </div>
+      </MainLayout>
+    );
   }
   
   const handleSearch = async () => {
@@ -85,7 +91,9 @@ const Friends = () => {
           {/* Friends List Tab */}
           <TabsContent value="friends">
             <div className="space-y-4">
-              {friends.length > 0 ? (
+              {loading ? (
+                <div className="text-center py-4">Loading friends...</div>
+              ) : friends.length > 0 ? (
                 friends.map(friend => (
                   <Card key={friend.id} className="bg-secondary/30">
                     <CardContent className="p-4 flex items-center justify-between">
@@ -145,14 +153,16 @@ const Friends = () => {
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   />
                 </div>
-                <Button onClick={handleSearch} disabled={isSearching}>
+                <Button onClick={handleSearch} disabled={isSearching || loading}>
                   <Search className="h-4 w-4 mr-2" />
                   {isSearching ? "Searching..." : "Search"}
                 </Button>
               </div>
               
               <div className="space-y-4">
-                {searchResults.length > 0 ? (
+                {loading || isSearching ? (
+                  <div className="text-center py-4">Searching...</div>
+                ) : searchResults.length > 0 ? (
                   searchResults.map(result => (
                     <Card key={result.id} className="bg-secondary/30">
                       <CardContent className="p-4 flex items-center justify-between">
@@ -165,6 +175,7 @@ const Friends = () => {
                         <Button 
                           variant="outline"
                           size="sm"
+                          disabled={loading}
                           onClick={() => sendFriendRequest(result.username)}
                         >
                           <UserPlus className="h-4 w-4 mr-2" />
@@ -199,7 +210,9 @@ const Friends = () => {
           {/* Friend Requests Tab */}
           <TabsContent value="requests">
             <div className="space-y-4">
-              {friendRequests.length > 0 ? (
+              {loading ? (
+                <div className="text-center py-4">Loading requests...</div>
+              ) : friendRequests.length > 0 ? (
                 friendRequests.map(request => (
                   <Card key={request.id} className="bg-secondary/30">
                     <CardContent className="p-4 flex items-center justify-between">
@@ -219,6 +232,7 @@ const Friends = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
+                          disabled={loading}
                           onClick={() => acceptFriendRequest(request.id)}
                         >
                           <UserCheck className="h-4 w-4 mr-2" />
@@ -227,6 +241,7 @@ const Friends = () => {
                         <Button 
                           variant="ghost" 
                           size="sm"
+                          disabled={loading}
                           onClick={() => declineFriendRequest(request.id)}
                           className="text-destructive hover:text-destructive/80"
                         >

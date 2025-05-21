@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFriends } from "@/contexts/FriendsContext";
 import MainLayout from "@/components/layout/MainLayout";
 import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,23 +18,78 @@ import {
   UserMinus
 } from "lucide-react";
 
+interface FriendProfile {
+  id: string;
+  username: string;
+  weeklyCount: number;
+  streakDays: number;
+  lastRelapse: string | null;
+}
+
 const FriendProfile = () => {
   const { user } = useAuth();
   const { friends, removeFriend } = useFriends();
   const navigate = useNavigate();
   const { friendId } = useParams<{ friendId: string }>();
-  const [friend, setFriend] = useState<typeof friends[0] | null>(null);
+  const [friend, setFriend] = useState<FriendProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   
   useEffect(() => {
-    if (friendId && friends.length > 0) {
-      const foundFriend = friends.find(f => f.id === friendId);
-      setFriend(foundFriend || null);
+    // Try to find the friend in the friends list first
+    const foundFriend = friends.find(f => f.id === friendId);
+    
+    if (foundFriend) {
+      setFriend({
+        id: foundFriend.id,
+        username: foundFriend.username,
+        weeklyCount: foundFriend.weeklyCount,
+        streakDays: foundFriend.streakDays,
+        lastRelapse: null // We don't have this info in friends list
+      });
+      setLoading(false);
+      return;
     }
-  }, [friendId, friends]);
+    
+    // If not found in friends list, fetch from Supabase
+    const fetchFriendProfile = async () => {
+      if (!friendId || !user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, weekly_count, streak_days, last_relapse')
+          .eq('id', friendId)
+          .single();
+        
+        if (error) throw error;
+        
+        if (data) {
+          setFriend({
+            id: data.id,
+            username: data.username,
+            weeklyCount: data.weekly_count,
+            streakDays: data.streak_days,
+            lastRelapse: data.last_relapse
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching friend profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchFriendProfile();
+  }, [friendId, friends, user]);
   
-  if (!user) {
-    navigate("/");
-    return null;
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <p>Loading friend profile...</p>
+        </div>
+      </MainLayout>
+    );
   }
   
   if (!friend) {
