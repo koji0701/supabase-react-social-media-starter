@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
 import AuthLayout from "@/components/layout/AuthLayout";
@@ -28,18 +27,68 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const Login = () => {
+  console.log("🔄 [LOGIN PAGE] Rendering Login component");
   const login = useAuthStore((state) => state.login);
+  const fetchUserProfile = useAuthStore((state) => state.fetchUserProfile);
+  const user = useAuthStore((state) => state.user);
+  const resetLoading = useAuthStore((state) => state.resetLoading);
   const isAuthLoading = useAuthStore((state) => state.isLoading);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const profile = useAuthStore((state) => state.profile);
   const navigate = useNavigate(); // For navigation
   const [error, setError] = useState<string | null>(null); // Local form error
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Local submitting state for button
   
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/dashboard');
-    return null;
-  }
+  // Track component mount and render stats
+  useEffect(() => {
+    console.log("🔄 [LOGIN PAGE] Component mounted");
+    return () => {
+      console.log("🔄 [LOGIN PAGE] Component unmounting");
+    };
+  }, []);
+  
+  useEffect(() => {
+    // Debug logging
+    console.log("🔄 [LOGIN PAGE] Auth state changed:", { 
+      isAuthenticated, 
+      isAuthLoading, 
+      hasProfile: !!profile,
+      hasUser: !!user,
+      userId: user?.id,
+      profileData: profile ? {
+        id: profile.id,
+        username: profile.username,
+        email: profile.email 
+      } : null
+    });
+    
+    // If we're authenticated but don't have a profile, try fetching it directly
+    if (isAuthenticated && user && !profile && !isAuthLoading) {
+      console.log("🔄 [LOGIN PAGE] Authenticated but no profile, fetching profile manually");
+      fetchUserProfile(user.id).catch(err => {
+        console.error("🔄 [LOGIN PAGE] Manual profile fetch failed:", err);
+      });
+      return;
+    }
+    
+    // Handle navigation when authenticated
+    if (isAuthenticated && profile && !isAuthLoading) {
+      console.log("🚀 [NAVIGATION] Redirecting to dashboard from Login");
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, isAuthLoading, profile, navigate, user, fetchUserProfile]);
+  
+  // Force reset loading state if stuck
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isAuthLoading) {
+        console.log("⚠️ [LOGIN PAGE] Detected stuck loading state, resetting");
+        resetLoading();
+      }
+    }, 10000); // 10 second safety timeout
+    
+    return () => clearTimeout(timer);
+  }, [isAuthLoading, resetLoading]);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -50,24 +99,42 @@ const Login = () => {
   });
   
   const onSubmit = async (data: FormData) => {
+    console.log(`🔑 [LOGIN PAGE] Submitting login form for ${data.email}`);
     setError(null);
     setIsSubmitting(true);
     try {
+      console.log("🔑 [LOGIN PAGE] Calling login function");
       await login(data.email, data.password);
-      navigate("/dashboard"); // Navigate on successful login
+      // No need to navigate here - the useEffect will handle it
+      console.log("🔑 [LOGIN PAGE] Login function returned successfully");
     } catch (err) {
       // Error is already toasted by the authStore.
       // Set local error for inline display if needed.
+      console.error("🔑 [LOGIN PAGE] Login error in component:", err);
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("An unknown error occurred during login.");
       }
     } finally {
+      console.log("🔑 [LOGIN PAGE] Login submission complete, resetting local submit state");
       setIsSubmitting(false);
     }
   };
   
+  // Show loading state if already authenticated
+  if (isAuthenticated && isAuthLoading) {
+    console.log("🔄 [LOGIN PAGE] Rendering authenticated loading state");
+    return (
+      <AuthLayout>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-lg">Loading your account...</p>
+        </div>
+      </AuthLayout>
+    );
+  }
+  
+  console.log("🔄 [LOGIN PAGE] Rendering login form");
   return (
     <AuthLayout>
       <div className="space-y-6">
