@@ -1,7 +1,6 @@
-
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +16,10 @@ interface MainLayoutProps {
 }
 
 const MainLayout = ({ children }: MainLayoutProps) => {
-  const { user, logout } = useAuth();
+  const { profile, logout: authLogout } = useAuthStore((state) => ({ // Get profile for username display
+    profile: state.profile,
+    logout: state.logout,
+  }));
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -45,6 +47,17 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       path: "/profile",
     },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await authLogout();
+      navigate("/"); // Navigate to login page after logout
+    } catch (error) {
+      // Error is already handled and toasted by the authStore
+      console.error("Logout failed:", error);
+    }
+  };
+
 
   return (
     <div className="flex h-screen bg-goon-deep-bg">
@@ -76,7 +89,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <Button
             variant="ghost"
             className="justify-start text-goon-gray hover:text-white hover:bg-muted"
-            onClick={logout}
+            onClick={handleLogout}
           >
             <LogOut className="h-5 w-5" />
             <span className="ml-2">Logout</span>
@@ -86,10 +99,10 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <div className="p-4 border-t border-white/5">
           <div className="flex items-center space-x-3">
             <div className="flex items-center justify-center h-8 w-8 rounded-full bg-goon-purple/20 text-goon-purple">
-              {user?.username.charAt(0).toUpperCase()}
+              {profile?.username ? profile.username.charAt(0).toUpperCase() : "?"}
             </div>
             <div className="font-medium text-sm text-goon-gray truncate">
-              {user?.username}
+              {profile?.username || "User"}
             </div>
           </div>
         </div>
