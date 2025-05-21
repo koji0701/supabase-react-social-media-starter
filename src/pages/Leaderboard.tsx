@@ -1,7 +1,6 @@
-
 import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useFriends } from "@/contexts/FriendsContext";
+import { useAuthStore } from "@/stores/authStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
 import { useNavigate } from "react-router-dom";
 
@@ -27,15 +26,15 @@ interface RankedUser {
 }
 
 const Leaderboard = () => {
-  const { profile } = useAuth();
-  const { friends, loading } = useFriends();
+  const profile = useAuthStore((state) => state.profile);
+  const friends = useFriendsStore((state) => state.friends);
+  const loadingFriends = useFriendsStore((state) => state.loading); // Loading state from friends store
   const navigate = useNavigate();
   const [rankedUsers, setRankedUsers] = useState<RankedUser[]>([]);
   
   useEffect(() => {
     if (!profile) return;
     
-    // Combine current user with friends
     const allUsers = [
       {
         id: profile.id,
@@ -50,7 +49,6 @@ const Leaderboard = () => {
       }))
     ];
     
-    // Sort by weekly count (lowest first) and then by streak (highest first)
     const sorted = [...allUsers].sort((a, b) => {
       if (a.weeklyCount === b.weeklyCount) {
         return b.streakDays - a.streakDays;
@@ -58,7 +56,6 @@ const Leaderboard = () => {
       return a.weeklyCount - b.weeklyCount;
     });
     
-    // Add rank
     const ranked = sorted.map((user, index) => ({
       ...user,
       rank: index + 1
@@ -67,7 +64,7 @@ const Leaderboard = () => {
     setRankedUsers(ranked);
   }, [profile, friends]);
   
-  if (!profile) {
+  if (!profile) { // Auth profile still loading or not available
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-96">
@@ -78,16 +75,10 @@ const Leaderboard = () => {
   }
   
   const getRankBadge = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return <Badge className="bg-amber-500 hover:bg-amber-600">1st</Badge>;
-      case 2:
-        return <Badge className="bg-slate-400 hover:bg-slate-500">2nd</Badge>;
-      case 3:
-        return <Badge className="bg-amber-800 hover:bg-amber-900">3rd</Badge>;
-      default:
-        return <Badge variant="outline">{rank}th</Badge>;
-    }
+    if (rank === 1) return <Badge className="bg-amber-500 hover:bg-amber-600">1st</Badge>;
+    if (rank === 2) return <Badge className="bg-slate-400 hover:bg-slate-500">2nd</Badge>;
+    if (rank === 3) return <Badge className="bg-amber-800 hover:bg-amber-900">3rd</Badge>;
+    return <Badge variant="outline">{rank}th</Badge>;
   };
   
   return (
@@ -103,11 +94,11 @@ const Leaderboard = () => {
           <Trophy className="h-8 w-8 text-goon-purple" />
         </div>
         
-        {loading ? (
+        {loadingFriends && rankedUsers.length === 0 ? ( // Show loading if friends data is loading and no users yet
           <div className="text-center py-8">
             <p>Loading leaderboard data...</p>
           </div>
-        ) : rankedUsers.length > 1 ? (
+        ) : rankedUsers.length > 1 || (rankedUsers.length === 1 && rankedUsers[0].isCurrentUser) ? ( // Also show table if only current user exists
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -155,6 +146,7 @@ const Leaderboard = () => {
                           size="sm"
                           className="h-8 w-8 p-0"
                           onClick={() => navigate(`/profile/${rankedUser.id}`)}
+                          aria-label={`View ${rankedUser.username}'s profile`}
                         >
                           <User className="h-4 w-4" />
                         </Button>

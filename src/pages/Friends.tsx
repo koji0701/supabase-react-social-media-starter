@@ -1,7 +1,6 @@
-
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useFriends } from "@/contexts/FriendsContext";
+import { useAuthStore } from "@/stores/authStore";
+import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
 import { useNavigate } from "react-router-dom";
 
@@ -20,7 +19,7 @@ import {
 } from "lucide-react";
 
 const Friends = () => {
-  const { profile } = useAuth();
+  const profile = useAuthStore((state) => state.profile);
   const { 
     friends, 
     friendRequests, 
@@ -29,13 +28,13 @@ const Friends = () => {
     declineFriendRequest, 
     removeFriend,
     searchUsers,
-    loading
-  } = useFriends();
+    loading: friendsLoading // Renamed to avoid conflict with local isSearching
+  } = useFriendsStore();
   const navigate = useNavigate();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{id: string, username: string}[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(false); // Local search operation loading
   
   if (!profile) {
     return (
@@ -88,10 +87,9 @@ const Friends = () => {
             </TabsTrigger>
           </TabsList>
           
-          {/* Friends List Tab */}
           <TabsContent value="friends">
             <div className="space-y-4">
-              {loading ? (
+              {friendsLoading ? ( // Use friendsLoading from store for this tab
                 <div className="text-center py-4">Loading friends...</div>
               ) : friends.length > 0 ? (
                 friends.map(friend => (
@@ -114,6 +112,7 @@ const Friends = () => {
                           variant="ghost" 
                           size="icon"
                           onClick={() => navigate(`/profile/${friend.id}`)}
+                          aria-label={`View ${friend.username}'s profile`}
                         >
                           <User className="h-4 w-4" />
                         </Button>
@@ -122,6 +121,8 @@ const Friends = () => {
                           size="icon"
                           onClick={() => removeFriend(friend.id)}
                           className="text-destructive hover:text-destructive/80"
+                          aria-label={`Remove ${friend.username} as friend`}
+                          disabled={friendsLoading}
                         >
                           <UserMinus className="h-4 w-4" />
                         </Button>
@@ -141,7 +142,6 @@ const Friends = () => {
             </div>
           </TabsContent>
           
-          {/* Add Friends Tab */}
           <TabsContent value="add">
             <div className="space-y-6">
               <div className="flex space-x-2">
@@ -153,14 +153,14 @@ const Friends = () => {
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   />
                 </div>
-                <Button onClick={handleSearch} disabled={isSearching || loading}>
+                <Button onClick={handleSearch} disabled={isSearching || friendsLoading}>
                   <Search className="h-4 w-4 mr-2" />
                   {isSearching ? "Searching..." : "Search"}
                 </Button>
               </div>
               
               <div className="space-y-4">
-                {loading || isSearching ? (
+                {isSearching ? ( // Use local isSearching for search results part
                   <div className="text-center py-4">Searching...</div>
                 ) : searchResults.length > 0 ? (
                   searchResults.map(result => (
@@ -175,7 +175,7 @@ const Friends = () => {
                         <Button 
                           variant="outline"
                           size="sm"
-                          disabled={loading}
+                          disabled={friendsLoading} // Disable if main friend operations are loading
                           onClick={() => sendFriendRequest(result.username)}
                         >
                           <UserPlus className="h-4 w-4 mr-2" />
@@ -185,7 +185,7 @@ const Friends = () => {
                     </Card>
                   ))
                 ) : (
-                  searchQuery ? (
+                  searchQuery && !isSearching ? ( // ensure not to show "no results" while searching
                     <div className="text-center py-8">
                       <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-medium">No results found</h3>
@@ -194,6 +194,7 @@ const Friends = () => {
                       </p>
                     </div>
                   ) : (
+                    !searchQuery && !isSearching && // Only show initial placeholder if not searching and no query
                     <div className="text-center py-8">
                       <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <h3 className="text-lg font-medium">Search for friends</h3>
@@ -207,10 +208,9 @@ const Friends = () => {
             </div>
           </TabsContent>
           
-          {/* Friend Requests Tab */}
           <TabsContent value="requests">
             <div className="space-y-4">
-              {loading ? (
+              {friendsLoading ? ( // Use friendsLoading for this tab too
                 <div className="text-center py-4">Loading requests...</div>
               ) : friendRequests.length > 0 ? (
                 friendRequests.map(request => (
@@ -232,7 +232,7 @@ const Friends = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          disabled={loading}
+                          disabled={friendsLoading}
                           onClick={() => acceptFriendRequest(request.id)}
                         >
                           <UserCheck className="h-4 w-4 mr-2" />
@@ -241,7 +241,7 @@ const Friends = () => {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          disabled={loading}
+                          disabled={friendsLoading}
                           onClick={() => declineFriendRequest(request.id)}
                           className="text-destructive hover:text-destructive/80"
                         >

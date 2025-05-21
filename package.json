@@ -60,7 +60,8 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.3",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",

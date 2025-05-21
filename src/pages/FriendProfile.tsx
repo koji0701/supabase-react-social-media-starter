@@ -1,10 +1,9 @@
-
 import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useFriends } from "@/contexts/FriendsContext";
+import { useAuthStore } from "@/stores/authStore"; // For current user context (e.g. ID)
+import { useFriendsStore } from "@/stores/friendsStore"; // For friends list and removeFriend action
 import MainLayout from "@/components/layout/MainLayout";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Direct Supabase client for detailed profile
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,43 +17,36 @@ import {
   UserMinus
 } from "lucide-react";
 
-interface FriendProfile {
+interface FriendProfileData { // Renamed to avoid conflict with store's Profile type
   id: string;
   username: string;
   weeklyCount: number;
   streakDays: number;
-  lastRelapse: string | null;
+  lastRelapse: string | null; // This is the key difference from Friend object in store
 }
 
 const FriendProfile = () => {
-  const { user } = useAuth();
-  const { friends, removeFriend } = useFriends();
+  const currentUser = useAuthStore((state) => state.user); // Get current user for context
+  const { friends, removeFriend, loading: friendsLoading } = useFriendsStore();
   const navigate = useNavigate();
   const { friendId } = useParams<{ friendId: string }>();
-  const [friend, setFriend] = useState<FriendProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  
+  const [friendProfile, setFriendProfile] = useState<FriendProfileData | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true); // Local loading for this specific profile
   
   useEffect(() => {
-    // Try to find the friend in the friends list first
-    const foundFriend = friends.find(f => f.id === friendId);
-    
-    if (foundFriend) {
-      setFriend({
-        id: foundFriend.id,
-        username: foundFriend.username,
-        weeklyCount: foundFriend.weeklyCount,
-        streakDays: foundFriend.streakDays,
-        lastRelapse: null // We don't have this info in friends list
-      });
-      setLoading(false);
-      return;
-    }
-    
-    // If not found in friends list, fetch from Supabase
-    const fetchFriendProfile = async () => {
-      if (!friendId || !user) return;
+    const fetchFriendDetails = async () => {
+      if (!friendId || !currentUser) {
+        setIsLoadingProfile(false);
+        return;
+      }
       
+      setIsLoadingProfile(true);
+      // First, check if basic info is in the friends list from the store
+      const friendFromStore = friends.find(f => f.id === friendId);
+
       try {
+        // Always fetch full profile from Supabase for `last_relapse` and latest data
         const { data, error } = await supabase
           .from('profiles')
           .select('id, username, weekly_count, streak_days, last_relapse')
@@ -64,25 +56,34 @@ const FriendProfile = () => {
         if (error) throw error;
         
         if (data) {
-          setFriend({
+          setFriendProfile({
             id: data.id,
             username: data.username,
             weeklyCount: data.weekly_count,
             streakDays: data.streak_days,
             lastRelapse: data.last_relapse
           });
+        } else if (friendFromStore) {
+          // Fallback to store data if Supabase fetch fails but friend exists in list
+          // Note: lastRelapse will be null here
+          setFriendProfile({ ...friendFromStore, lastRelapse: null });
         }
+
       } catch (error) {
         console.error("Error fetching friend profile:", error);
+        // If Supabase fetch fails but friend was in store, use store data as fallback
+        if (friendFromStore) {
+            setFriendProfile({ ...friendFromStore, lastRelapse: null });
+        }
       } finally {
-        setLoading(false);
+        setIsLoadingProfile(false);
       }
     };
     
-    fetchFriendProfile();
-  }, [friendId, friends, user]);
+    fetchFriendDetails();
+  }, [friendId, currentUser, friends]); // Depend on friends from store to potentially update if list changes
   
-  if (loading) {
+  if (isLoadingProfile) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-96">
@@ -92,14 +93,14 @@ const FriendProfile = () => {
     );
   }
   
-  if (!friend) {
+  if (!friendProfile) {
     return (
       <MainLayout>
         <div className="text-center py-12">
           <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Friend not found</h3>
           <p className="text-muted-foreground mb-4">
-            This user may not be your friend anymore.
+            This user profile could not be loaded.
           </p>
           <Button onClick={() => navigate("/friends")}>
             Back to Friends
@@ -110,6 +111,10 @@ const FriendProfile = () => {
   }
   
   const maxStreakDays = 30; // Example max for progress bar
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString();
+  };
   
   return (
     <MainLayout>
@@ -120,11 +125,12 @@ const FriendProfile = () => {
               variant="ghost" 
               size="icon"
               onClick={() => navigate(-1)}
+              aria-label="Go back"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold mb-2">{friend.username}'s Profile</h1>
+              <h1 className="text-3xl font-bold mb-2">{friendProfile.username}'s Profile</h1>
               <p className="text-muted-foreground">
                 View your friend's progress.
               </p>
@@ -136,15 +142,15 @@ const FriendProfile = () => {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center md:space-x-6 text-center md:text-left">
               <div className="flex items-center justify-center h-24 w-24 rounded-full bg-goon-purple/20 text-goon-purple text-4xl font-medium mb-4 md:mb-0">
-                {friend.username.charAt(0).toUpperCase()}
+                {friendProfile.username.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 className="text-2xl font-bold">{friend.username}</h2>
+                <h2 className="text-2xl font-bold">{friendProfile.username}</h2>
                 
                 <div className="flex items-center mt-2 justify-center md:justify-start">
                   <Award className="h-4 w-4 mr-1 text-goon-purple" />
                   <span className="text-sm">
-                    {friend.streakDays} day streak
+                    {friendProfile.streakDays} day streak
                   </span>
                 </div>
                 
@@ -152,11 +158,13 @@ const FriendProfile = () => {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      removeFriend(friend.id);
+                    onClick={async () => {
+                      await removeFriend(friendProfile.id);
                       navigate("/friends");
                     }}
                     className="text-destructive hover:text-destructive/80"
+                    disabled={friendsLoading}
+                    aria-label={`Remove ${friendProfile.username} as friend`}
                   >
                     <UserMinus className="h-4 w-4 mr-2" />
                     Remove Friend
@@ -168,7 +176,6 @@ const FriendProfile = () => {
         </Card>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Friend's streak */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -178,13 +185,20 @@ const FriendProfile = () => {
             <CardContent className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Days Clean</span>
-                <span className="font-medium">{friend.streakDays} days</span>
+                <span className="font-medium">{friendProfile.streakDays} days</span>
               </div>
-              <Progress value={(friend.streakDays / maxStreakDays) * 100} className="h-2" />
+              <Progress value={(friendProfile.streakDays / maxStreakDays) * 100} className="h-2" />
+               {friendProfile.lastRelapse && (
+                <div className="pt-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Last relapse</span>
+                    <span>{formatDate(friendProfile.lastRelapse)}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           
-          {/* Weekly stats */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -195,7 +209,7 @@ const FriendProfile = () => {
               <div className="text-center py-4">
                 <span className="text-muted-foreground block">Total Relapses</span>
                 <span className="text-4xl font-bold text-goon-purple block mt-2">
-                  {friend.weeklyCount}
+                  {friendProfile.weeklyCount}
                 </span>
               </div>
             </CardContent>

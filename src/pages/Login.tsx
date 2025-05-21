@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
+import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
 import AuthLayout from "@/components/layout/AuthLayout";
 
 import { z } from "zod";
@@ -27,9 +27,11 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const { login, isLoading: isAuthLoading } = useAuth();
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const login = useAuthStore((state) => state.login);
+  const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const navigate = useNavigate(); // For navigation
+  const [error, setError] = useState<string | null>(null); // Local form error
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Local submitting state for button
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -44,10 +46,10 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       await login(data.email, data.password);
+      navigate("/dashboard"); // Navigate on successful login
     } catch (err) {
-      // The login function in AuthContext already shows a toast for errors.
-      // Setting local error state might be redundant if toasts are preferred.
-      // However, keeping it for now in case specific inline error display is desired.
+      // Error is already toasted by the authStore.
+      // Set local error for inline display if needed.
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -119,7 +121,7 @@ const Login = () => {
               className="w-full"
               disabled={isSubmitting || isAuthLoading}
             >
-              {isSubmitting ? (
+              {(isSubmitting || isAuthLoading) ? (
                 "Signing in..."
               ) : (
                 <>

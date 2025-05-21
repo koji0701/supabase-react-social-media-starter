@@ -1,6 +1,4 @@
-
-import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuthStore } from "@/stores/authStore";
 import MainLayout from "@/components/layout/MainLayout";
 import { useNavigate } from "react-router-dom";
 
@@ -16,7 +14,7 @@ import {
 } from "lucide-react";
 
 const Profile = () => {
-  const { profile } = useAuth();
+  const profile = useAuthStore((state) => state.profile);
   const navigate = useNavigate();
   
   if (!profile) {
@@ -31,7 +29,7 @@ const Profile = () => {
   
   const maxStreakDays = 30; // Example max for progress bar
   
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString();
   };
@@ -59,9 +57,10 @@ const Profile = () => {
                 <h2 className="text-2xl font-bold">{profile.username}</h2>
                 <p className="text-muted-foreground">{profile.email}</p>
                 
+                {/* Assuming member since can be derived from profile creation if available, or a placeholder */}
                 <div className="flex items-center mt-2 justify-center md:justify-start">
                   <Award className="h-4 w-4 mr-1 text-goon-purple" />
-                  <span className="text-sm">Member since {new Date().toLocaleDateString()}</span>
+                  <span className="text-sm">Active Member</span> 
                 </div>
               </div>
             </div>
@@ -69,7 +68,6 @@ const Profile = () => {
         </Card>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Current streak */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
@@ -92,7 +90,6 @@ const Profile = () => {
             </CardContent>
           </Card>
           
-          {/* Weekly stats */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
