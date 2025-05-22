@@ -15,7 +15,10 @@ import {
   User,
   UserCheck,
   UserMinus,
-  X
+  X,
+  Wifi,
+  WifiOff,
+  AlertCircle
 } from "lucide-react";
 
 const Friends = () => {
@@ -28,7 +31,11 @@ const Friends = () => {
     declineFriendRequest, 
     removeFriend,
     searchUsers,
-    loading: friendsLoading // Renamed to avoid conflict with local isSearching
+    loading: friendsLoading, // Renamed to avoid conflict with local isSearching
+    realtimeStatus,
+    lastError,
+    retryConnection,
+    clearError
   } = useFriendsStore();
   const navigate = useNavigate();
   
@@ -63,6 +70,32 @@ const Friends = () => {
       setIsSearching(false);
     }
   };
+
+  const getRealtimeStatusIcon = () => {
+    switch (realtimeStatus) {
+      case 'connected':
+        return <Wifi className="h-4 w-4 text-green-500" />;
+      case 'connecting':
+        return <Wifi className="h-4 w-4 text-yellow-500 animate-pulse" />;
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <WifiOff className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getRealtimeStatusText = () => {
+    switch (realtimeStatus) {
+      case 'connected':
+        return 'Real-time active';
+      case 'connecting':
+        return 'Connecting...';
+      case 'error':
+        return 'Connection error';
+      default:
+        return 'Real-time inactive';
+    }
+  };
   
   return (
     <MainLayout>
@@ -73,6 +106,23 @@ const Friends = () => {
             <p className="text-muted-foreground">
               Manage your friends and stay accountable together.
             </p>
+            <div className="flex items-center mt-2 text-sm text-muted-foreground">
+              {getRealtimeStatusIcon()}
+              <span className="ml-2">{getRealtimeStatusText()}</span>
+              {realtimeStatus === 'error' && lastError && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="ml-2 text-xs"
+                  onClick={() => {
+                    clearError();
+                    retryConnection();
+                  }}
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
           </div>
           <Users className="h-8 w-8 text-goon-purple" />
         </div>
@@ -85,8 +135,11 @@ const Friends = () => {
             <TabsTrigger value="add" className="flex-1">
               <UserPlus className="h-4 w-4 mr-2" /> Add Friends
             </TabsTrigger>
-            <TabsTrigger value="requests" className="flex-1">
+            <TabsTrigger value="requests" className="flex-1 relative">
               <User className="h-4 w-4 mr-2" /> Requests ({friendRequests.length})
+              {friendRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 bg-goon-purple rounded-full animate-pulse"></span>
+              )}
             </TabsTrigger>
           </TabsList>
           
