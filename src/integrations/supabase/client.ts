@@ -15,24 +15,21 @@ console.log(`🔌 [SUPABASE] Using URL: ${SUPABASE_URL}`);
 // Create client with debug logging
 const supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-    debug: true, // Enable debug logging for auth
+    storage: localStorage, // localStorage is fine, but session won't persist across browser close
+    persistSession: false, // Disable session persistence
+    autoRefreshToken: true, // Still useful for long-lived active sessions within a single use
+    debug: true,
   },
 });
 
 // Add logging for auth state changes for debugging
-// This initial onAuthStateChange is on the raw client, for broader debugging if needed.
-// The one in the exported 'supabase' object will be used by the app.
 supabaseClient.auth.onAuthStateChange((event, session) => {
   console.log(`🔌 [SUPABASE_RAW_CLIENT] Auth event: ${event}, hasSession: ${!!session}`);
+  // INITIAL_SESSION will now typically be null if persistSession is false
 });
 
-// Log any existing session on initialization
-supabaseClient.auth.getSession().then(({ data: { session } }) => {
-  console.log(`🔌 [SUPABASE_RAW_CLIENT] Initial session check: ${session ? 'Session exists' : 'No session'}`);
-});
+// Removed: explicit call to supabaseClient.auth.getSession() that logged any existing session.
+// onAuthStateChange will fire with INITIAL_SESSION immediately.
 
 // Create a wrapped client with logging for exports
 export const supabase = {
