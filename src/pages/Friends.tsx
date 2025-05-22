@@ -56,6 +56,9 @@ const Friends = () => {
     try {
       const results = await searchUsers(searchQuery);
       setSearchResults(results);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }

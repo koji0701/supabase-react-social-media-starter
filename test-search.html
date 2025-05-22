@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Test</title>
+</head>
+<body>
+    <h1>Search Test</h1>
+    <p>Open browser console and check network tab. The search functionality should work when you:</p>
+    <ol>
+        <li>Navigate to your app at http://localhost:8081</li>
+        <li>Log in with either account</li>
+        <li>Go to Friends → Add Friends tab</li>
+        <li>Search for "koji" or "koji2"</li>
+        <li>Check console logs and network requests</li>
+    </ol>
+
+    <h2>Expected Behavior:</h2>
+    <ul>
+        <li>User "kojirwong" should be able to search for and find "koji2"</li>
+        <li>User "koji2" should be able to search for and find "kojirwong"</li>
+        <li>Search results should appear in cards with "Add Friend" buttons</li>
+    </ul>
+
+    <h2>Test Data:</h2>
+    <ul>
+        <li>User 1: email "kojirwong@gmail.com", username "kojirwong"</li>
+        <li>User 2: email "k.r.wong@wustl.edu", username "koji2"</li>
+    </ul>
+</body>
+</html> 
