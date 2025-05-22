@@ -2,41 +2,44 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
-import { cn } from "@/lib/utils"; // Import cn utility
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CountingNumber } from "@/components/animate-ui/text/counting-number";
+import { SlidingNumber } from "@/components/animate-ui/text/sliding-number";
 import { FireworksBackground } from "@/components/animate-ui/backgrounds/fireworks";
 
-const FIREWORKS_FADE_IN_DURATION = 500; // ms
-const FIREWORKS_ACTIVE_DURATION = 6000; // ms, time fireworks are fully visible
+const FIREWORKS_FADE_IN_DURATION = 500;   // ms
+const FIREWORKS_ACTIVE_DURATION = 6000;  // ms
 const FIREWORKS_FADE_OUT_DURATION = 1000; // ms
 
 const Dashboard = () => {
   console.log("🔄 [DASHBOARD] Rendering Dashboard component");
-  
-  const profile = useAuthStore((state) => state.profile);
-  const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const updateWeeklyCount = useAuthStore((state) => state.updateWeeklyCount);
-  
-  const refreshFriends = useFriendsStore((state) => state.refreshFriends);
-  const friends = useFriendsStore((state) => state.friends);
-  const friendsLoading = useFriendsStore((state) => state.loading);
-  
-  const navigate = useNavigate();
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasFetchedFriendsInitial, setHasFetchedFriendsInitial] = useState(false);
-  
-  const [renderFireworksComponent, setRenderFireworksComponent] = useState(false);
-  const [fireworksAreVisible, setFireworksAreVisible] = useState(false);
-  const [previousWeeklyCountForAnimation, setPreviousWeeklyCountForAnimation] = useState<number | undefined>(undefined);
 
+  const profile           = useAuthStore((s) => s.profile);
+  const isFetchingProfile = useAuthStore((s) => s.isFetchingProfile);
+  const isAuthenticated   = useAuthStore((s) => s.isAuthenticated);
+  const updateWeeklyCount = useAuthStore((s) => s.updateWeeklyCount);
+
+  const refreshFriends = useFriendsStore((s) => s.refreshFriends);
+  const friends        = useFriendsStore((s) => s.friends);
+  const friendsLoading = useFriendsStore((s) => s.loading);
+
+  const navigate = useNavigate();
+
+  const [isConfirming, setIsConfirming]               = useState(false);
+  const [error, setError]                             = useState<string | null>(null);
+  const [hasFetchedFriendsInitial, setHasFetchedFriendsInitial] = useState(false);
+
+  const [renderFireworksComponent, setRenderFireworksComponent] = useState(false);
+  const [fireworksAreVisible, setFireworksAreVisible]           = useState(false);
+
+  // ────────────────────────────────────────────────────────────────────────────────
+  // LIFECYCLE / DATA FETCHING
+  // ────────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     console.log("🔄 [DASHBOARD] Component mounted with auth state:", {
       isAuthenticated,
@@ -47,48 +50,53 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    console.log("🔄 [DASHBOARD] Effect triggered by state change:", { 
-      hasProfile: !!profile, 
+    console.log("🔄 [DASHBOARD] Effect triggered by state change:", {
+      hasProfile: !!profile,
       isFetchingProfile,
       isAuthenticated,
       friendsCount: friends.length,
-      hasFetchedFriendsInitial
+      hasFetchedFriendsInitial,
     });
-    
+
     if (profile && !isFetchingProfile && !hasFetchedFriendsInitial && !friendsLoading) {
       console.log("👥 [DASHBOARD] Profile ready, attempting initial friends data load.");
-      setHasFetchedFriendsInitial(true); 
-      refreshFriends().catch(err => {
+      setHasFetchedFriendsInitial(true);
+      refreshFriends().catch((err) => {
         console.error("👥 [DASHBOARD] Error loading initial friends:", err);
-        setError("Failed to load friends data."); 
+        setError("Failed to load friends data.");
       });
     }
-  }, [profile, isFetchingProfile, isAuthenticated, friends.length, refreshFriends, hasFetchedFriendsInitial, friendsLoading]);
+  }, [
+    profile,
+    isFetchingProfile,
+    isAuthenticated,
+    friends.length,
+    refreshFriends,
+    hasFetchedFriendsInitial,
+    friendsLoading,
+  ]);
 
+  // ────────────────────────────────────────────────────────────────────────────────
+  // FIREWORKS VISIBILITY CONTROL
+  // ────────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     let fadeInTimer: NodeJS.Timeout;
     let fadeOutTimer: NodeJS.Timeout;
     let unmountTimer: NodeJS.Timeout;
 
     if (renderFireworksComponent) {
-      // Start fade-in by setting fireworksAreVisible to true after a brief delay
-      // This ensures the component is mounted with opacity-0 before the transition starts
-      fadeInTimer = setTimeout(() => {
-        setFireworksAreVisible(true);
-      }, 50); // Small delay for CSS transition to pick up initial opacity-0
+      fadeInTimer = setTimeout(() => setFireworksAreVisible(true), 50);
 
-      // Start timer to initiate fade-out
-      fadeOutTimer = setTimeout(() => {
-        setFireworksAreVisible(false);
-      }, FIREWORKS_ACTIVE_DURATION + 50); // Account for the initial small delay
+      fadeOutTimer = setTimeout(
+        () => setFireworksAreVisible(false),
+        FIREWORKS_ACTIVE_DURATION + 50,
+      );
 
-      // Start timer to unmount after fade-out completes
-      unmountTimer = setTimeout(() => {
-        setRenderFireworksComponent(false);
-      }, FIREWORKS_ACTIVE_DURATION + FIREWORKS_FADE_OUT_DURATION + 50); // Account for fade out duration
-    
+      unmountTimer = setTimeout(
+        () => setRenderFireworksComponent(false),
+        FIREWORKS_ACTIVE_DURATION + FIREWORKS_FADE_OUT_DURATION + 50,
+      );
     } else {
-      // If component is not supposed to be rendered, ensure visibility state is also false
       setFireworksAreVisible(false);
     }
 
@@ -99,45 +107,52 @@ const Dashboard = () => {
     };
   }, [renderFireworksComponent]);
 
-
+  // ────────────────────────────────────────────────────────────────────────────────
+  // EARLY RETURNS
+  // ────────────────────────────────────────────────────────────────────────────────
   if (!profile) {
-    console.error("❌ [DASHBOARD] Critical: Profile is null. This shouldn't happen if MainLayout/ProtectedRoute are working.");
+    console.error(
+      "❌ [DASHBOARD] Critical: Profile is null. This shouldn't happen if MainLayout/ProtectedRoute are working.",
+    );
     return (
-        <MainLayout>
-            <div className="flex items-center justify-center h-96">
-                <p className="text-lg text-destructive">Error: User profile not available.</p>
-            </div>
-        </MainLayout>
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <p className="text-lg text-destructive">Error: User profile not available.</p>
+        </div>
+      </MainLayout>
     );
   }
-  
+
   if (error) {
     return (
       <MainLayout>
         <div className="flex flex-col items-center justify-center h-96 space-y-4">
           <p className="text-lg text-destructive">Error loading dashboard</p>
           <p className="text-muted-foreground">{error}</p>
-          <Button onClick={() => {
-            setError(null); 
-            setHasFetchedFriendsInitial(false);
-          }}>Try Again</Button>
+          <Button
+            onClick={() => {
+              setError(null);
+              setHasFetchedFriendsInitial(false);
+            }}
+          >
+            Try Again
+          </Button>
         </div>
       </MainLayout>
     );
   }
 
+  // ────────────────────────────────────────────────────────────────────────────────
+  // EVENT HANDLERS
+  // ────────────────────────────────────────────────────────────────────────────────
   const handleRelapseClick = async () => {
     if (isConfirming) {
-      setIsConfirming(false); 
+      setIsConfirming(false);
       try {
-        setPreviousWeeklyCountForAnimation(profile.weeklyCount);
-        await updateWeeklyCount();
-        
-        // Reset fireworks state before triggering
-        setFireworksAreVisible(false); 
-        setRenderFireworksComponent(true); // This will trigger the useEffect for fireworks
-        
-      } catch (err) { 
+        await updateWeeklyCount(); // back‑end updates weeklyCount; SlidingNumber will animate automatically
+        setFireworksAreVisible(false);
+        setRenderFireworksComponent(true);
+      } catch (err) {
         console.error("🔄 [DASHBOARD] Error during relapse update:", err);
       }
     } else {
@@ -146,59 +161,66 @@ const Dashboard = () => {
     }
   };
 
-  const topFriends = [...(friends || [])]
-    .sort((a, b) => a.weeklyCount - b.weeklyCount) 
+  // ────────────────────────────────────────────────────────────────────────────────
+  // DERIVED DATA
+  // ────────────────────────────────────────────────────────────────────────────────
+  const topFriends = [...friends]
+    .sort((a, b) => a.weeklyCount - b.weeklyCount)
     .slice(0, 3);
 
-  const streakDays = profile.streakDays || 0;
-  const maxStreakDays = 30; 
+  const streakDays    = profile.streakDays || 0;
+  const maxStreakDays = 30;
 
   console.log("🔄 [DASHBOARD] Rendering main dashboard UI with profile:", profile.username);
+
+  // ────────────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ────────────────────────────────────────────────────────────────────────────────
   return (
     <MainLayout>
       {renderFireworksComponent && (
         <FireworksBackground
           className={cn(
             "fixed inset-0 z-[100] transition-opacity ease-in-out",
-            fireworksAreVisible ? "opacity-100" : "opacity-0"
+            fireworksAreVisible ? "opacity-100" : "opacity-0",
           )}
-          style={{ 
-            transitionDuration: fireworksAreVisible 
-              ? `${FIREWORKS_FADE_IN_DURATION}ms` 
-              : `${FIREWORKS_FADE_OUT_DURATION}ms`
+          style={{
+            transitionDuration: fireworksAreVisible
+              ? `${FIREWORKS_FADE_IN_DURATION}ms`
+              : `${FIREWORKS_FADE_OUT_DURATION}ms`,
           }}
-          population={2} 
+          population={2}
           particleSpeed={{ min: 1, max: 8 }}
           fireworkSpeed={{ min: 4, max: 9 }}
-          color={["#a855f7", "#ec4899", "#f97316", "#84cc16"]} 
+          color={["#a855f7", "#ec4899", "#f97316", "#84cc16"]}
         />
       )}
+
       <div className="space-y-8 animate-fade-in">
+        {/* HEADER */}
         <div>
           <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
           <p className="text-muted-foreground">Track your progress and stay accountable.</p>
         </div>
 
+        {/* WEEKLY COUNT CARD */}
         <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
           <CardContent className="pt-6">
             <div className="text-center space-y-6">
               <div className="space-y-2">
                 <h2 className="text-xl font-medium">This Week's Count</h2>
-                <CountingNumber
+                <SlidingNumber
+                  key={profile.weeklyCount}
                   number={profile.weeklyCount}
-                  fromNumber={previousWeeklyCountForAnimation ?? 0}
                   className="text-4xl font-bold text-goon-purple"
-                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  transition={{ stiffness: 200, damping: 20, mass: 0.4 }}
                 />
               </div>
+
               <Button
                 size="lg"
                 variant={isConfirming ? "destructive" : "outline"}
-                className={`w-full py-6 text-lg transition-all ${
-                  isConfirming
-                    ? "bg-destructive/90 hover:bg-destructive"
-                    : "border-goon-purple/50 text-goon-purple hover:bg-goon-purple/10"
-                }`}
+                className="w-full py-6 text-lg transition-all"
                 onClick={handleRelapseClick}
               >
                 {isConfirming ? "Confirm Relapse" : "I Relapsed"}
@@ -207,6 +229,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
+        {/* STREAK + LEADERBOARD */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
@@ -234,13 +257,20 @@ const Dashboard = () => {
                 View All <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </CardHeader>
+
             <CardContent>
-              {friendsLoading && !friends.length && ( 
-                <div className="text-center text-muted-foreground py-2">Loading friends...</div>
+              {friendsLoading && !friends.length && (
+                <div className="text-center text-muted-foreground py-2">
+                  Loading friends...
+                </div>
               )}
+
               {!friendsLoading && topFriends.length === 0 && friends.length === 0 && (
-                <div className="text-center text-muted-foreground py-2">Add friends to see the leaderboard</div>
+                <div className="text-center text-muted-foreground py-2">
+                  Add friends to see the leaderboard
+                </div>
               )}
+
               {topFriends.length > 0 && (
                 <div className="space-y-2">
                   {topFriends.map((friend, index) => (
@@ -263,3 +293,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
