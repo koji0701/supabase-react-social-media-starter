@@ -237,7 +237,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       );
       if (error) throw error;
       await get().fetchUserProfile(user.id); // Refetch profile to get updated counts
-      toast({ title: "Relapse logged" });
+      // toast({ title: "Relapse logged" });
     } catch (error: any) {
       console.error("📊 [COUNT] Error updating count:", error);
       toast({ title: "Error updating count", description: error.message || "Failed to log relapse.", variant: "destructive" });
