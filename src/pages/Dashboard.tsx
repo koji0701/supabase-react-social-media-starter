@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
@@ -8,19 +8,80 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+// import { toast } from "@/components/ui/use-toast"; // toast is not directly used here
 
 const Dashboard = () => {
+  console.log("🔄 [DASHBOARD] Rendering Dashboard component");
+  
   const profile = useAuthStore((state) => state.profile);
+  // const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth); // REMOVED
+  const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const updateWeeklyCount = useAuthStore((state) => state.updateWeeklyCount);
+  
+  const refreshFriends = useFriendsStore((state) => state.refreshFriends);
   const friends = useFriendsStore((state) => state.friends);
+  const friendsLoading = useFriendsStore((state) => state.loading);
+  
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasFetchedFriendsInitial, setHasFetchedFriendsInitial] = useState(false);
+  
+  useEffect(() => {
+    console.log("🔄 [DASHBOARD] Component mounted with auth state:", {
+      isAuthenticated,
+      // isLoadingAuth, // REMOVED
+      isFetchingProfile,
+      hasProfile: !!profile,
+    });
+    return () => console.log("🔄 [DASHBOARD] Component unmounting");
+  }, []);
+
+  useEffect(() => {
+    console.log("🔄 [DASHBOARD] Effect triggered by state change:", { 
+      hasProfile: !!profile, 
+      // isLoadingAuth, // REMOVED
+      isFetchingProfile,
+      isAuthenticated,
+      friendsCount: friends.length,
+      hasFetchedFriendsInitial
+    });
+    
+    // Load friends data when profile is available, not fetching profile, 
+    // and initial friends fetch hasn't happened and friends are not currently loading.
+    if (profile && !isFetchingProfile && !hasFetchedFriendsInitial && !friendsLoading) {
+      console.log("👥 [DASHBOARD] Profile ready, attempting initial friends data load.");
+      setHasFetchedFriendsInitial(true); 
+      refreshFriends().catch(err => {
+        console.error("👥 [DASHBOARD] Error loading initial friends:", err);
+        setError("Failed to load friends data."); 
+      });
+    }
+  }, [profile, isFetchingProfile, isAuthenticated, friends.length, refreshFriends, hasFetchedFriendsInitial, friendsLoading]);
 
   if (!profile) {
+    console.error("❌ [DASHBOARD] Critical: Profile is null. This shouldn't happen if MainLayout/ProtectedRoute are working.");
+    return (
+        <MainLayout>
+            <div className="flex items-center justify-center h-96">
+                <p className="text-lg text-destructive">Error: User profile not available.</p>
+            </div>
+        </MainLayout>
+    );
+  }
+  
+  if (error) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-96">
-          <p>Loading your dashboard...</p>
+        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+          <p className="text-lg text-destructive">Error loading dashboard</p>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => {
+            setError(null); 
+            setHasFetchedFriendsInitial(false); // Allow retry of friends fetch
+            // Potentially call refreshFriends() here directly if desired for immediate retry
+          }}>Try Again</Button>
         </div>
       </MainLayout>
     );
@@ -28,29 +89,30 @@ const Dashboard = () => {
 
   const handleRelapseClick = async () => {
     if (isConfirming) {
-      await updateWeeklyCount();
-      setIsConfirming(false);
+      setIsConfirming(false); 
+      try {
+        await updateWeeklyCount();
+      } catch (err) { /* Error already toasted by authStore */ }
     } else {
       setIsConfirming(true);
       setTimeout(() => setIsConfirming(false), 3000);
     }
   };
 
-  const topFriends = [...friends]
+  const topFriends = [...(friends || [])]
     .sort((a, b) => a.weeklyCount - b.weeklyCount)
     .slice(0, 3);
 
-  const streakDays = profile.streakDays;
-  const maxStreakDays = 30; // Example max for progress bar
+  const streakDays = profile.streakDays || 0;
+  const maxStreakDays = 30;
 
+  console.log("🔄 [DASHBOARD] Rendering main dashboard UI with profile:", profile.username);
   return (
     <MainLayout>
       <div className="space-y-8 animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Track your progress and stay accountable.
-          </p>
+          <p className="text-muted-foreground">Track your progress and stay accountable.</p>
         </div>
 
         <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
@@ -58,11 +120,8 @@ const Dashboard = () => {
             <div className="text-center space-y-6">
               <div className="space-y-2">
                 <h2 className="text-xl font-medium">This Week's Count</h2>
-                <p className="text-4xl font-bold text-goon-purple">
-                  {profile.weeklyCount}
-                </p>
+                <p className="text-4xl font-bold text-goon-purple">{profile.weeklyCount}</p>
               </div>
-              
               <Button
                 size="lg"
                 variant={isConfirming ? "destructive" : "outline"}
@@ -107,7 +166,13 @@ const Dashboard = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              {topFriends.length > 0 ? (
+              {friendsLoading && !friends.length && ( 
+                <div className="text-center text-muted-foreground py-2">Loading friends...</div>
+              )}
+              {!friendsLoading && topFriends.length === 0 && friends.length === 0 && (
+                <div className="text-center text-muted-foreground py-2">Add friends to see the leaderboard</div>
+              )}
+              {topFriends.length > 0 && (
                 <div className="space-y-2">
                   {topFriends.map((friend, index) => (
                     <div key={friend.id} className="flex items-center justify-between">
@@ -118,10 +183,6 @@ const Dashboard = () => {
                       <span className="font-medium">{friend.weeklyCount}</span>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-2">
-                  Add friends to see the leaderboard
                 </div>
               )}
             </CardContent>
