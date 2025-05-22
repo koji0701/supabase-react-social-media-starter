@@ -21,44 +21,25 @@ import NotFound from "./pages/NotFound";
 const ProtectedRoute = ({ children, path }: { children: JSX.Element, path: string }) => {
   console.log(`🛡️ [PROTECTED ROUTE] Checking auth for ${path}`);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth); // Changed from isLoading
+  // const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth); // REMOVED
   const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
   
   console.log(`🛡️ [PROTECTED ROUTE] Auth state for ${path}:`, { 
     isAuthenticated, 
-    isLoadingAuth, // Changed from isLoading
+    // isLoadingAuth, // REMOVED
     userId: user?.id,
     hasProfile: !!profile,
     profileId: profile?.id
   });
 
-  if (isLoadingAuth) { // Changed from isLoading
-    console.log(`🛡️ [PROTECTED ROUTE] Loading session state for ${path}`);
-    return (
-      <div className="flex items-center justify-center h-screen w-screen bg-goon-deep-bg">
-        <p className="text-lg text-foreground">Loading session...</p>
-      </div>
-    );
-  }
+  // isLoadingAuth check is removed. If not authenticated, user is redirected to login.
+  // If authenticated, MainLayout/page components will handle isFetchingProfile.
 
   if (!isAuthenticated) {
     console.log(`🛡️ [PROTECTED ROUTE] Not authenticated, redirecting from ${path} to login`);
     return <Navigate to="/" replace />;
   }
-  
-  // Optional: Add a check for profile if required by all protected routes,
-  // or handle profile loading within specific page components or MainLayout.
-  // For now, just isAuthenticated is enough for the route protection.
-  // if (!profile) {
-  //   console.log(`🛡️ [PROTECTED ROUTE] Authenticated but no profile, showing loading/error for ${path}`);
-  //   // This might be where MainLayout's no-profile screen comes in, or a specific loading state
-  //   return (
-  //     <div className="flex items-center justify-center h-screen w-screen bg-goon-deep-bg">
-  //       <p className="text-lg text-foreground">Loading profile...</p>
-  //     </div>
-  //   );
-  // }
   
   console.log(`🛡️ [PROTECTED ROUTE] Authenticated, rendering ${path}`);
   return children;

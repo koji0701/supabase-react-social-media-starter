@@ -30,12 +30,10 @@ const Login = () => {
   console.log("🔄 [LOGIN PAGE] Rendering Login component");
   const login = useAuthStore((state) => state.login);
   const user = useAuthStore((state) => state.user);
-  const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth);
+  // const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth); // REMOVED
   const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const profile = useAuthStore((state) => state.profile);
-  // fetchUserProfile is primarily handled by authStore's onAuthStateChange now
-  // const fetchUserProfile = useAuthStore((state) => state.fetchUserProfile); 
 
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -51,26 +49,25 @@ const Login = () => {
   useEffect(() => {
     console.log("🔄 [LOGIN PAGE] Auth state changed:", { 
       isAuthenticated, 
-      isLoadingAuth, 
+      // isLoadingAuth, // REMOVED
       isFetchingProfile,
       hasProfile: !!profile,
       hasUser: !!user,
       userId: user?.id,
     });
     
-    // Navigate if authenticated, profile is loaded (or not strictly required here), and auth isn't in an initial loading state.
-    // The profile check is important to ensure all user data is ready before redirecting.
-    if (isAuthenticated && profile && !isLoadingAuth && !isFetchingProfile) {
+    // Navigate if authenticated, profile is loaded, and profile isn't currently being fetched.
+    if (isAuthenticated && profile && !isFetchingProfile) {
       console.log("🚀 [NAVIGATION] Redirecting to dashboard from Login");
       navigate('/dashboard');
-    } else if (isAuthenticated && !profile && !isLoadingAuth && !isFetchingProfile && user) {
-      // This case might indicate an issue if profile should always exist for an authenticated user.
-      // For now, we rely on onAuthStateChange to fetch it.
-      // If it gets stuck here, it means profile fetch might have failed or not triggered.
-      console.log("🔄 [LOGIN PAGE] Authenticated, no profile yet, but not loading. Waiting for profile or further action.");
+    } else if (isAuthenticated && !profile && !isFetchingProfile && user) {
+      // This case: authenticated, no profile, not fetching.
+      // This could mean profile fetch failed or hasn't started for some reason.
+      // authStore's onAuthStateChange should handle profile fetching.
+      console.log("🔄 [LOGIN PAGE] Authenticated, no profile yet, not fetching. Waiting for profile or further action.");
     }
 
-  }, [isAuthenticated, isLoadingAuth, isFetchingProfile, profile, user, navigate]);
+  }, [isAuthenticated, isFetchingProfile, profile, user, navigate]);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -100,15 +97,15 @@ const Login = () => {
     }
   };
   
-  // Show a generic loading state if initial auth check is happening,
-  // or if authenticated and profile is being fetched.
-  if (isLoadingAuth || (isAuthenticated && isFetchingProfile)) {
-    console.log("🔄 [LOGIN PAGE] Rendering global loading state (auth/profile)");
+  // Show a loading state if authenticated and profile is being fetched.
+  // The "Initializing session..." part is removed as session is not persisted.
+  if (isAuthenticated && isFetchingProfile) {
+    console.log("🔄 [LOGIN PAGE] Rendering loading state (profile fetch)");
     return (
       <AuthLayout>
         <div className="flex items-center justify-center h-64">
           <p className="text-lg">
-            {isLoadingAuth ? "Initializing session..." : "Loading your account..."}
+            Loading your account...
           </p>
         </div>
       </AuthLayout>

@@ -24,31 +24,30 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const user = useAuthStore(state => state.user);
   const fetchUserProfile = useAuthStore(state => state.fetchUserProfile);
-  const isLoadingAuth = useAuthStore(state => state.isLoadingAuth);
+  // const isLoadingAuth = useAuthStore(state => state.isLoadingAuth); // REMOVED
   const isFetchingProfile = useAuthStore(state => state.isFetchingProfile);
   
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Local state to track if a manual refresh has been attempted if profile is missing post-load
   const [manualRefreshAttempted, setManualRefreshAttempted] = useState(false);
 
   useEffect(() => {
     console.log(`🔄 [LAYOUT] MainLayout effect at path: ${location.pathname}`);
     console.log("🔄 [LAYOUT] Auth state in MainLayout:", { 
       isAuthenticated, 
-      isLoadingAuth,
+      // isLoadingAuth, // REMOVED
       isFetchingProfile,
       hasProfile: !!profile,
       hasUser: !!user,
       userId: user?.id,
     });
     
-    // If authenticated, all loading is done, but somehow no profile, and no manual refresh tried yet.
-    // This is a fallback, ideally authStore handles profile fetching.
-    if (isAuthenticated && user && !profile && !isLoadingAuth && !isFetchingProfile && !manualRefreshAttempted) {
-      console.log("🔄 [LAYOUT] Fallback: Has user, all loading done, but no profile. Attempting manual fetch.");
-      setManualRefreshAttempted(true); // Prevent re-triggering this fallback immediately
+    // Fallback: If authenticated, user exists, but no profile and not currently fetching,
+    // and no manual refresh tried yet, attempt to fetch profile.
+    if (isAuthenticated && user && !profile && !isFetchingProfile && !manualRefreshAttempted) {
+      console.log("🔄 [LAYOUT] Fallback: Has user, not fetching, but no profile. Attempting manual fetch.");
+      setManualRefreshAttempted(true); 
       fetchUserProfile(user.id).catch(err => {
         console.error("🔄 [LAYOUT] Fallback profile fetch error:", err);
       });
@@ -57,7 +56,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     return () => {
       console.log(`🔄 [LAYOUT] MainLayout unmounting from path: ${location.pathname}`);
     };
-  }, [location.pathname, profile, isAuthenticated, user, fetchUserProfile, isLoadingAuth, isFetchingProfile, manualRefreshAttempted]);
+  }, [location.pathname, profile, isAuthenticated, user, fetchUserProfile, isFetchingProfile, manualRefreshAttempted]);
 
   const isActive = (path: string) => location.pathname === path;
   
@@ -77,23 +76,23 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   
   const handleRefreshProfile = async () => {
     if (user) {
-      setManualRefreshAttempted(true); // Consider this a manual attempt
+      setManualRefreshAttempted(true); 
       await fetchUserProfile(user.id);
     }
   };
 
-  // Show a loading indicator if initial auth is happening or profile is being fetched.
-  if (isLoadingAuth || (isAuthenticated && isFetchingProfile && !profile)) {
-    console.log("⚠️ [LAYOUT] Loading auth or profile data in MainLayout...");
+  // Show a loading indicator if authenticated but profile is still being fetched (and not yet available).
+  if (isAuthenticated && isFetchingProfile && !profile) {
+    console.log("⚠️ [LAYOUT] Loading profile data in MainLayout...");
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
-        <p className="text-lg">Loading your session...</p>
+        <p className="text-lg">Loading account details...</p>
       </div>
     );
   }
 
-  // If all loading is done, user is authenticated, but profile is still missing
-  if (isAuthenticated && !profile && !isLoadingAuth && !isFetchingProfile) {
+  // If authenticated, all fetching is done, but profile is still missing
+  if (isAuthenticated && !profile && !isFetchingProfile) {
     console.log("⚠️ [LAYOUT] No profile data available after loading, showing error/refresh UI.");
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
@@ -115,19 +114,17 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     );
   }
   
-  // This case should ideally not be hit if ProtectedRoute handles !isAuthenticated
-  if (!isAuthenticated && !isLoadingAuth) {
-     console.warn("⚠️ [LAYOUT] Reached MainLayout without authentication and not loading. Redirecting to login.");
-     navigate("/");
-     return null; // Or a minimal loading spinner while redirecting
+  // If not authenticated, ProtectedRoute should handle the redirection.
+  // This is a safeguard.
+  if (!isAuthenticated) {
+     console.warn("⚠️ [LAYOUT] Reached MainLayout without authentication. Redirecting to login.");
+     navigate("/"); // Redirect to login page
+     return null; 
   }
 
-  // If profile is finally available after all checks
+  // If authenticated and not fetching, profile should exist. If not, it's a critical error.
   if (!profile) {
-    // This is a catch-all if somehow profile is null despite other checks.
-    // This could happen if isAuthenticated is false (then ProtectedRoute should prevent this),
-    // or if some logic error occurred.
-    console.error("⚠️ [LAYOUT] Critical: Profile is null when it should not be. Rendering minimal error.");
+    console.error("⚠️ [LAYOUT] Critical: Profile is null when it should not be (authenticated, not fetching). Rendering minimal error.");
     return (
          <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
             <p className="text-lg text-destructive">An unexpected error occurred loading your profile.</p>

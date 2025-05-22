@@ -8,65 +8,59 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "@/components/ui/use-toast";
+// import { toast } from "@/components/ui/use-toast"; // toast is not directly used here
 
 const Dashboard = () => {
   console.log("🔄 [DASHBOARD] Rendering Dashboard component");
   
   const profile = useAuthStore((state) => state.profile);
-  const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth);
+  // const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth); // REMOVED
   const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  // const user = useAuthStore((state) => state.user); // Not directly used here, profile has necessary info
   const updateWeeklyCount = useAuthStore((state) => state.updateWeeklyCount);
   
   const refreshFriends = useFriendsStore((state) => state.refreshFriends);
   const friends = useFriendsStore((state) => state.friends);
-  const friendsLoading = useFriendsStore((state) => state.loading); // Use friends store's loading flag
+  const friendsLoading = useFriendsStore((state) => state.loading);
   
   const navigate = useNavigate();
   const [isConfirming, setIsConfirming] = useState(false);
-  // const [loadingFriends, setLoadingFriends] = useState(false); // Replaced by friendsStore.loading
-  const [error, setError] = useState<string | null>(null); // For local dashboard errors
+  const [error, setError] = useState<string | null>(null);
   const [hasFetchedFriendsInitial, setHasFetchedFriendsInitial] = useState(false);
   
   useEffect(() => {
     console.log("🔄 [DASHBOARD] Component mounted with auth state:", {
       isAuthenticated,
-      isLoadingAuth,
+      // isLoadingAuth, // REMOVED
       isFetchingProfile,
       hasProfile: !!profile,
     });
     return () => console.log("🔄 [DASHBOARD] Component unmounting");
-  }, []); // Deliberately empty for mount/unmount only with initial values
+  }, []);
 
   useEffect(() => {
     console.log("🔄 [DASHBOARD] Effect triggered by state change:", { 
       hasProfile: !!profile, 
-      isLoadingAuth,
+      // isLoadingAuth, // REMOVED
       isFetchingProfile,
       isAuthenticated,
       friendsCount: friends.length,
       hasFetchedFriendsInitial
     });
     
-    // Load friends data when profile is available and initial friends fetch hasn't happened.
-    if (profile && !isLoadingAuth && !isFetchingProfile && !hasFetchedFriendsInitial && !friendsLoading) {
+    // Load friends data when profile is available, not fetching profile, 
+    // and initial friends fetch hasn't happened and friends are not currently loading.
+    if (profile && !isFetchingProfile && !hasFetchedFriendsInitial && !friendsLoading) {
       console.log("👥 [DASHBOARD] Profile ready, attempting initial friends data load.");
-      setHasFetchedFriendsInitial(true); // Attempt only once per component lifecycle here
+      setHasFetchedFriendsInitial(true); 
       refreshFriends().catch(err => {
         console.error("👥 [DASHBOARD] Error loading initial friends:", err);
-        // setError("Failed to load friends data."); // Optionally set local error
+        setError("Failed to load friends data."); 
       });
     }
-  }, [profile, isLoadingAuth, isFetchingProfile, isAuthenticated, friends.length, refreshFriends, hasFetchedFriendsInitial, friendsLoading]);
+  }, [profile, isFetchingProfile, isAuthenticated, friends.length, refreshFriends, hasFetchedFriendsInitial, friendsLoading]);
 
-  // The MainLayout will handle global loading states (auth, profile).
-  // Dashboard assumes MainLayout has ensured profile exists if this point is reached.
-  // However, if profile is somehow null here despite MainLayout's checks, it's an error.
   if (!profile) {
-     // This state should ideally be caught by MainLayout or ProtectedRoute.
-     // If it reaches here, it's an unexpected state.
     console.error("❌ [DASHBOARD] Critical: Profile is null. This shouldn't happen if MainLayout/ProtectedRoute are working.");
     return (
         <MainLayout>
@@ -83,7 +77,11 @@ const Dashboard = () => {
         <div className="flex flex-col items-center justify-center h-96 space-y-4">
           <p className="text-lg text-destructive">Error loading dashboard</p>
           <p className="text-muted-foreground">{error}</p>
-          <Button onClick={() => setError(null) /* Or a more specific retry */}>Try Again</Button>
+          <Button onClick={() => {
+            setError(null); 
+            setHasFetchedFriendsInitial(false); // Allow retry of friends fetch
+            // Potentially call refreshFriends() here directly if desired for immediate retry
+          }}>Try Again</Button>
         </div>
       </MainLayout>
     );
@@ -91,7 +89,7 @@ const Dashboard = () => {
 
   const handleRelapseClick = async () => {
     if (isConfirming) {
-      setIsConfirming(false); // Reset first in case of error
+      setIsConfirming(false); 
       try {
         await updateWeeklyCount();
       } catch (err) { /* Error already toasted by authStore */ }
@@ -168,7 +166,7 @@ const Dashboard = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              {friendsLoading && !friends.length && ( // Show loading only if no friends displayed yet
+              {friendsLoading && !friends.length && ( 
                 <div className="text-center text-muted-foreground py-2">Loading friends...</div>
               )}
               {!friendsLoading && topFriends.length === 0 && friends.length === 0 && (
