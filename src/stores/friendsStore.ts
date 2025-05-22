@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { useAuthStore } from "./authStore"; // Import auth store
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 interface Friend {
   id: string;
@@ -23,6 +24,10 @@ interface FriendsState {
   friends: Friend[];
   friendRequests: FriendRequest[];
   loading: boolean; // For friends-specific operations
+  realtimeStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  subscriptions: RealtimeChannel[];
+  connectionAttempts: number;
+  lastError: string | null;
 }
 
 interface FriendsActions {
@@ -33,12 +38,24 @@ interface FriendsActions {
   acceptFriendRequest: (requestId: string) => Promise<void>;
   declineFriendRequest: (requestId: string) => Promise<void>;
   removeFriend: (friendId: string) => Promise<void>;
+  // Real-time subscription methods
+  startRealtimeSubscriptions: () => Promise<void>;
+  stopRealtimeSubscriptions: () => void;
+  handleNewFriendRequest: (payload: any) => Promise<void>;
+  handleFriendRequestUpdate: (payload: any) => void;
+  handleFriendRequestDelete: (payload: any) => void;
+  retryConnection: () => Promise<void>;
+  clearError: () => void;
 }
 
 const initialState: FriendsState = {
   friends: [],
   friendRequests: [],
   loading: false,
+  realtimeStatus: 'disconnected',
+  subscriptions: [],
+  connectionAttempts: 0,
+  lastError: null,
 };
 
 export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) => ({
@@ -250,11 +267,17 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
         return;
       }
       
-      const { error } = await supabase
+      const insertData = { user_id: user.id, friend_id: (userData as any).id, status: 'pending' };
+      console.log("🔄 [SEND_REQUEST] Inserting friend request:", insertData);
+      
+      const { data: insertResult, error } = await supabase
         .from('friendships')
-        .insert({ user_id: user.id, friend_id: (userData as any).id, status: 'pending' });
+        .insert(insertData)
+        .select(); // Add select to see what was actually inserted
         
       if (error) throw error;
+      
+      console.log("🔄 [SEND_REQUEST] Friend request inserted successfully:", insertResult);
       toast({ title: 'Request sent', description: `Friend request sent to ${targetUsername}` });
     } catch (error) {
       console.error('Error sending friend request:', error);
@@ -335,6 +358,320 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
       set({ loading: false });
     }
   },
+
+  // Real-time subscription methods
+  startRealtimeSubscriptions: async () => {
+    const user = useAuthStore.getState().user;
+    if (!user) {
+      console.log("🔄 [REALTIME] Cannot start subscriptions: no authenticated user");
+      return;
+    }
+
+    const { connectionAttempts } = get();
+    const maxRetries = 3;
+    const retryDelay = Math.min(1000 * (2 ** connectionAttempts), 10000); // Fixed Math.pow to ** operator
+
+    if (connectionAttempts >= maxRetries) {
+      console.log("🔄 [REALTIME] Max connection attempts reached");
+      set({ 
+        realtimeStatus: 'error',
+        lastError: 'Maximum connection attempts exceeded'
+      });
+      return;
+    }
+
+    // Stop existing subscriptions first
+    get().stopRealtimeSubscriptions();
+
+    console.log(`🔄 [REALTIME] Starting friend request subscriptions for user: ${user.id} (attempt ${connectionAttempts + 1})`);
+    set({ 
+      realtimeStatus: 'connecting',
+      connectionAttempts: connectionAttempts + 1,
+      lastError: null
+    });
+
+    try {
+      // Set auth token for realtime
+      console.log("🔄 [REALTIME] Setting auth token for realtime connection");
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("🔄 [REALTIME] Session details:", { 
+        hasSession: !!session, 
+        hasAccessToken: !!session?.access_token,
+        userId: session?.user?.id 
+      });
+      
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+        console.log("🔄 [REALTIME] Auth token set successfully");
+      } else {
+        throw new Error("No valid session found for real-time connection");
+      }
+
+      // Subscribe to new friend requests (INSERTs where current user is friend_id)
+      console.log(`🔄 [REALTIME] Setting up INSERT subscription with filter: friend_id=eq.${user.id}`);
+      const friendRequestChannel = supabase
+        .channel('friend-requests')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'friendships',
+            filter: `friend_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("🔄 [REALTIME] New friend request received:", payload);
+            console.log("🔄 [REALTIME] Payload details:", {
+              event: payload.eventType,
+              table: payload.table,
+              new: payload.new,
+              schema: payload.schema
+            });
+            get().handleNewFriendRequest(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'friendships',
+            filter: `friend_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("🔄 [REALTIME] Friend request updated:", payload);
+            get().handleFriendRequestUpdate(payload);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'friendships',
+            filter: `friend_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("🔄 [REALTIME] Friend request deleted:", payload);
+            get().handleFriendRequestDelete(payload);
+          }
+        )
+        .subscribe((status, err) => {
+          console.log("🔄 [REALTIME] Subscription status changed:", { status, error: err });
+          if (status === 'SUBSCRIBED') {
+            console.log("🔄 [REALTIME] Friend requests subscription active");
+            set({ 
+              realtimeStatus: 'connected',
+              connectionAttempts: 0,
+              lastError: null
+            });
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error("🔄 [REALTIME] Friend requests subscription error:", err);
+            const errorMessage = err?.message || 'Connection failed';
+            set({ 
+              realtimeStatus: 'error',
+              lastError: errorMessage
+            });
+            
+            // Auto-retry after delay
+            setTimeout(() => {
+              if (get().realtimeStatus === 'error') {
+                get().retryConnection();
+              }
+            }, retryDelay);
+          } else if (status === 'CLOSED') {
+            console.log("🔄 [REALTIME] Connection closed, attempting to reconnect");
+            setTimeout(() => {
+              if (get().realtimeStatus !== 'connected') {
+                get().retryConnection();
+              }
+            }, retryDelay);
+          }
+        });
+
+      // Subscribe to friendship updates (for when requests are accepted by others)
+      const friendshipUpdatesChannel = supabase
+        .channel('friendship-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'friendships',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("🔄 [REALTIME] Friendship status updated:", payload);
+            // Refresh friends list when a sent request is accepted
+            if ((payload.new as any)?.status === 'accepted') {
+              get().refreshFriends();
+            }
+          }
+        )
+        .subscribe((status, err) => {
+          console.log("🔄 [REALTIME] Friendship updates subscription status:", { status, error: err });
+        });
+
+      // Store channels for cleanup
+      set(state => ({
+        subscriptions: [...state.subscriptions, friendRequestChannel, friendshipUpdatesChannel]
+      }));
+
+      console.log("🔄 [REALTIME] All subscriptions started successfully");
+    } catch (error) {
+      console.error("🔄 [REALTIME] Error starting subscriptions:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      set({ 
+        realtimeStatus: 'error',
+        lastError: errorMessage
+      });
+      
+      // Auto-retry after delay
+      setTimeout(() => {
+        if (get().realtimeStatus === 'error') {
+          get().retryConnection();
+        }
+      }, retryDelay);
+    }
+  },
+
+  stopRealtimeSubscriptions: () => {
+    const { subscriptions } = get();
+    console.log("🔄 [REALTIME] Stopping subscriptions:", subscriptions.length);
+    
+    for (const channel of subscriptions) {
+      supabase.removeChannel(channel);
+    }
+    
+    set({ 
+      subscriptions: [],
+      realtimeStatus: 'disconnected'
+    });
+  },
+
+  handleNewFriendRequest: async (payload: any) => {
+    try {
+      console.log("🔄 [REALTIME] Raw payload received:", JSON.stringify(payload, null, 2));
+      
+      const newFriendship = payload.new;
+      if (!newFriendship || newFriendship.status !== 'pending') {
+        console.log("🔄 [REALTIME] Skipping - not a pending friend request:", { 
+          hasNew: !!newFriendship, 
+          status: newFriendship?.status 
+        });
+        return;
+      }
+
+      console.log("🔄 [REALTIME] Processing new friend request from:", newFriendship.user_id);
+
+      // Get the sender's profile information with explicit typing
+      const { data: senderProfile, error } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .eq('id', newFriendship.user_id)
+        .single();
+
+      console.log("🔄 [REALTIME] Profile query result:", { 
+        senderProfile, 
+        error,
+        hasData: !!senderProfile 
+      });
+
+      if (error) {
+        console.error("🔄 [REALTIME] Error fetching sender profile:", error);
+        return;
+      }
+
+      if (!senderProfile) {
+        console.log("🔄 [REALTIME] No sender profile found");
+        return;
+      }
+
+      // Type assertion to help TypeScript understand the structure
+      const profile = senderProfile as { id: string; username: string };
+
+      const newRequest: FriendRequest = {
+        id: newFriendship.id,
+        from: {
+          id: profile.id,
+          username: profile.username,
+        },
+        status: 'pending'
+      };
+
+      console.log("🔄 [REALTIME] Adding new request to state:", newRequest);
+
+      // Add to friend requests state (check for duplicates first)
+      set(state => {
+        // Check if this request already exists
+        const existingRequest = state.friendRequests.find(req => req.id === newRequest.id);
+        if (existingRequest) {
+          console.log("🔄 [REALTIME] Request already exists, skipping:", newRequest.id);
+          return state; // Return unchanged state
+        }
+
+        const updatedRequests = [...state.friendRequests, newRequest];
+        console.log("🔄 [REALTIME] Updated friend requests state:", {
+          previousCount: state.friendRequests.length,
+          newCount: updatedRequests.length,
+          newRequest: newRequest
+        });
+        return {
+          friendRequests: updatedRequests
+        };
+      });
+
+      // Show notification
+      toast({
+        title: 'New Friend Request',
+        description: `${profile.username} wants to be your friend!`,
+      });
+
+      console.log("🔄 [REALTIME] Friend request processed successfully");
+
+    } catch (error) {
+      console.error("🔄 [REALTIME] Error handling new friend request:", error);
+    }
+  },
+
+  handleFriendRequestUpdate: (payload: any) => {
+    const updatedFriendship = payload.new;
+    if (!updatedFriendship) return;
+
+    console.log("🔄 [REALTIME] Handling friend request update:", updatedFriendship);
+
+    if (updatedFriendship.status === 'accepted') {
+      // Remove from friend requests and refresh friends
+      set(state => ({
+        friendRequests: state.friendRequests.filter(req => req.id !== updatedFriendship.id)
+      }));
+      get().refreshFriends();
+    }
+  },
+
+  handleFriendRequestDelete: (payload: any) => {
+    const deletedFriendship = payload.old;
+    if (!deletedFriendship) return;
+
+    console.log("🔄 [REALTIME] Handling friend request deletion:", deletedFriendship);
+
+    // Remove from friend requests
+    set(state => ({
+      friendRequests: state.friendRequests.filter(req => req.id !== deletedFriendship.id)
+    }));
+  },
+
+  retryConnection: async () => {
+    console.log("🔄 [REALTIME] Retrying connection...");
+    await get().startRealtimeSubscriptions();
+  },
+
+  clearError: () => {
+    set({ 
+      lastError: null,
+      connectionAttempts: 0
+    });
+  },
 }));
 
 // Subscribe to authStore to react to user login/logout
@@ -344,11 +681,15 @@ useAuthStore.subscribe(
     const previousUser = prevState.user;
 
     if (currentUser && (!previousUser || previousUser.id !== currentUser.id)) {
-      console.log("[FriendsStore] User logged in or changed, refreshing friends data.");
-      useFriendsStore.getState().refreshFriends();
-      useFriendsStore.getState().refreshFriendRequests();
+      console.log("[FriendsStore] User logged in or changed, refreshing friends data and starting realtime.");
+      const friendsStore = useFriendsStore.getState();
+      friendsStore.refreshFriends();
+      friendsStore.refreshFriendRequests();
+      friendsStore.startRealtimeSubscriptions();
     } else if (!currentUser && previousUser) {
-      console.log("[FriendsStore] User logged out, resetting friends state.");
+      console.log("[FriendsStore] User logged out, stopping realtime and resetting friends state.");
+      const friendsStore = useFriendsStore.getState();
+      friendsStore.stopRealtimeSubscriptions();
       useFriendsStore.setState(initialState);
     }
   }
