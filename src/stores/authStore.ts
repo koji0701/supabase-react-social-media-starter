@@ -17,7 +17,8 @@ interface AuthState {
   profile: Profile | null;
   session: Session | null;
   isAuthenticated: boolean;
-  isLoading: boolean; // For initial auth check and major auth operations
+  isLoadingAuth: boolean; // Renamed: True until initial auth check is complete
+  isFetchingProfile: boolean; // New: True while actively fetching profile
 }
 
 interface AuthActions {
@@ -27,7 +28,7 @@ interface AuthActions {
   signup: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateWeeklyCount: () => Promise<void>;
-  resetLoading: () => void;
+  // resetLoading removed as isLoadingAuth is simpler now
 }
 
 const initialState: AuthState = {
@@ -35,7 +36,8 @@ const initialState: AuthState = {
   profile: null,
   session: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoadingAuth: true, // Indicates initial auth check ongoing
+  isFetchingProfile: false,
 };
 
 // Helper function to create stable profile object references
@@ -55,36 +57,34 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   initializeAuth: () => {
     console.log("🔐 [AUTH] Initializing auth system...");
-    // Set initial loading to true if it's not already (e.g. on hot reload)
-    if (!get().isLoading) {
-      set({ isLoading: true });
-    }
+    // isLoadingAuth is true by default. It will be set to false after the first session check/auth event.
 
-    // Setup auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log(`🔐 [AUTH] Auth state changed: event=${_event}, hasSession=${!!session}`);
-      try {
-        set({ session, isLoading: true }); // Start loading for this change
-        const currentUser = session?.user ?? null;
-        console.log(`🔐 [AUTH] Setting user: ${currentUser?.email}, isAuthenticated=${!!currentUser}`);
-        set({ user: currentUser, isAuthenticated: !!currentUser });
+      const currentUser = session?.user ?? null;
+      
+      set(state => ({ 
+        ...state, // Preserve existing state
+        session, 
+        user: currentUser, 
+        isAuthenticated: !!currentUser,
+        // isLoadingAuth will be set to false once, after the first event or initial getSession completes
+      }));
 
-        if (currentUser) {
-          try {
-            console.log(`🔐 [AUTH] User authenticated, fetching profile for ${currentUser.id}`);
-            await get().fetchUserProfile(currentUser.id);
-            // fetchUserProfile will update profile and set isLoading to false when successful
-          } catch (error) {
-            console.error("🔐 [AUTH] Error in auth state change profile fetch:", error);
-            set({ profile: null, isLoading: false });
-          }
+      if (currentUser) {
+        if (!get().profile || get().profile?.id !== currentUser.id) { // Fetch profile if no profile or different user
+          console.log(`🔐 [AUTH] User authenticated (${currentUser.id}), fetching profile.`);
+          await get().fetchUserProfile(currentUser.id);
         } else {
-          console.log("🔐 [AUTH] No user, clearing profile");
-          set({ profile: null, isLoading: false }); // No user, clear profile, done loading
+          console.log(`🔐 [AUTH] User (${currentUser.id}) already has profile loaded.`);
+           // If profile for current user already exists, ensure loading states are false.
+          if (get().isLoadingAuth || get().isFetchingProfile) {
+            set({ isLoadingAuth: false, isFetchingProfile: false });
+          }
         }
-      } catch (error) {
-        console.error("🔐 [AUTH] Error in auth state change:", error);
-        set({ ...initialState, isLoading: false });
+      } else {
+        console.log("🔐 [AUTH] No user, clearing profile.");
+        set({ profile: null, isLoadingAuth: false, isFetchingProfile: false });
       }
     });
 
@@ -93,24 +93,24 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       console.log(`🔐 [AUTH] Initial session check: hasSession=${!!initialSession}, hasError=${!!error}`);
       if (error) {
         console.error("🔐 [AUTH] Error getting initial session:", error);
-        set({ ...initialState, isLoading: false });
+        set({ ...initialState, user: null, session: null, profile: null, isAuthenticated: false, isLoadingAuth: false, isFetchingProfile: false });
         return;
       }
 
-      if (!initialSession) {
-        // If no initial session, we are done loading
-        console.log("🔐 [AUTH] No initial session found, clearing loading state");
-        set({ ...initialState, isLoading: false });
-      } else {
-        console.log("🔐 [AUTH] Initial session found, onAuthStateChange will handle it");
+      // If there's no initial session, onAuthStateChange might not fire immediately with USER_SIGNED_OUT or similar.
+      // So, we ensure isLoadingAuth is set to false.
+      // If a session *does* exist, onAuthStateChange will handle it and eventually set loading states.
+      if (!initialSession && get().isLoadingAuth) { // Only update if still loading and no session
+         console.log("🔐 [AUTH] No initial session, setting isLoadingAuth to false.");
+         set({ isLoadingAuth: false, isFetchingProfile: false });
       }
-      // If initialSession exists, onAuthStateChange will handle it
+      // If initialSession exists, onAuthStateChange is expected to fire and handle it.
+      // If onAuthStateChange has already run (e.g. due to a fast event), isLoadingAuth might already be false.
     }).catch(error => {
-      console.error("🔐 [AUTH] Unexpected error getting session:", error);
-      set({ ...initialState, isLoading: false });
+      console.error("🔐 [AUTH] Unexpected error getting initial session:", error);
+      set({ ...initialState, user: null, session: null, profile: null, isAuthenticated: false, isLoadingAuth: false, isFetchingProfile: false });
     });
 
-    // Cleanup function not called in this context, but good practice
     return () => {
       subscription.unsubscribe();
     };
@@ -118,24 +118,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   fetchUserProfile: async (userId: string) => {
     console.log(`👤 [PROFILE] Fetching profile for user ${userId}`);
-    // This function specifically handles fetching and setting the profile.
-    // It also sets isLoading to false as it's the last step in an auth flow.
+    set({ isFetchingProfile: true });
     try {
-      console.log(`👤 [PROFILE] Making Supabase query to profiles table with id=${userId}`);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      
-      console.log(`👤 [PROFILE] Query response:`, { 
-        hasData: !!data, 
-        hasError: !!error,
-        errorMessage: error?.message,
-        errorDetails: error?.details,
-        dataKeys: data ? Object.keys(data) : null,
-        rawData: data
-      });
       
       if (error) {
         console.error("👤 [PROFILE] Error fetching profile:", error);
@@ -144,120 +133,83 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           description: error.message || "Could not load your user profile.",
           variant: "destructive",
         });
-        set({ profile: null, isLoading: false }); // Done loading, but with error
+        set({ profile: null, isFetchingProfile: false, isLoadingAuth: false }); // Ensure isLoadingAuth is false
         return;
       }
       
       if (data) {
-        console.log(`👤 [PROFILE] Profile data found for user ${userId}:`, data);
-        
-        // Use the helper function to create a stable profile object
         const profileData = createProfileObject(data);
-        
-        console.log(`👤 [PROFILE] Parsed profile data:`, profileData);
-        
-        // Update state with profile data
         set({
           profile: profileData,
-          isLoading: false, // Profile fetched, done loading
+          isFetchingProfile: false,
+          isLoadingAuth: false, // Ensure isLoadingAuth is false
         });
-        
-        console.log("👤 [PROFILE] Auth state after profile load:", {
-          isAuthenticated: get().isAuthenticated,
-          isLoading: false,
-          hasProfile: true,
-          username: data.username
-        });
+        console.log("👤 [PROFILE] Profile loaded:", profileData);
       } else {
-        console.error(`👤 [PROFILE] No profile data returned for user: ${userId}`);
-        console.log("👤 [PROFILE] User exists but might not have a profile record. Creating one...");
-        
-        // Get current user data to help with profile creation
+        console.warn(`👤 [PROFILE] No profile data found for user: ${userId}. Attempting to create one.`);
         const user = get().user;
         if (!user) {
           console.error("👤 [PROFILE] Cannot create profile - user object is null");
-          set({ profile: null, isLoading: false });
+          set({ profile: null, isFetchingProfile: false, isLoadingAuth: false });
           return;
         }
         
-        try {
-          // Try to create a profile for this user
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              id: userId,
-              email: user.email || '',
-              username: user.user_metadata?.username || `user_${userId.substring(0, 6)}`,
-              weekly_count: 0,
-              streak_days: 0
-            })
-            .select('*')
-            .single();
-          
-          if (createError) {
-            console.error("👤 [PROFILE] Error creating profile:", createError);
-            toast({
-              title: "Profile creation failed",
-              description: "Could not create a profile for your account.",
-              variant: "destructive",
-            });
-            set({ profile: null, isLoading: false });
-            return;
-          }
-          
-          if (newProfile) {
-            console.log("👤 [PROFILE] New profile created successfully:", newProfile);
-            // Use the helper function to create a stable profile object
-            const profileData = createProfileObject(newProfile);
-            
-            set({
-              profile: profileData,
-              isLoading: false
-            });
-          }
-        } catch (createErr: any) {
-          console.error("👤 [PROFILE] Unexpected error creating profile:", createErr);
-          toast({
-            title: "Profile creation failed",
-            description: createErr.message || "An unknown error occurred.",
-            variant: "destructive",
-          });
-          set({ profile: null, isLoading: false });
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email: user.email || '',
+            username: user.user_metadata?.username || `user_${userId.substring(0, 6)}`,
+            weekly_count: 0,
+            streak_days: 0
+          })
+          .select('*')
+          .single();
+        
+        if (createError) {
+          console.error("👤 [PROFILE] Error creating profile:", createError);
+          toast({ title: "Profile creation failed", variant: "destructive" });
+          set({ profile: null, isFetchingProfile: false, isLoadingAuth: false });
+          return;
+        }
+        
+        if (newProfile) {
+          const profileData = createProfileObject(newProfile);
+          set({ profile: profileData, isFetchingProfile: false, isLoadingAuth: false });
+          console.log("👤 [PROFILE] New profile created and loaded:", profileData);
+        } else {
+          set({ profile: null, isFetchingProfile: false, isLoadingAuth: false }); // Should not happen if insert succeeded
         }
       }
     } catch (e: any) { 
       console.error("👤 [PROFILE] Unexpected error fetching profile:", e);
-      toast({
-        title: "Error loading profile",
-        description: e.message || "An unknown error occurred.",
-        variant: "destructive",
-      });
-      set({ profile: null, isLoading: false }); // Done loading, with error
+      toast({ title: "Error loading profile", variant: "destructive" });
+      set({ profile: null, isFetchingProfile: false, isLoadingAuth: false });
     }
   },
 
   login: async (email, password) => {
     console.log(`🔑 [LOGIN] Attempting login for ${email}`);
-    set({ isLoading: true });
+    // Login page can set its own local loading state for the form submission
+    // No need to set global isLoadingAuth or isFetchingProfile here, onAuthStateChange will handle it.
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      console.log(`🔑 [LOGIN] Login successful for ${email}`, data);
-      
-      // onAuthStateChange will handle fetching profile and setting final isLoading state
+      // onAuthStateChange will trigger, setting user, session, and fetching profile.
       toast({ title: "Logged in successfully", description: "Welcome back!" });
     } catch (error: any) {
       console.error("🔑 [LOGIN] Login error:", error);
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
-      set({ isLoading: false }); // Explicitly set false on direct failure
-      throw error; // Re-throw for component to handle navigation or further UI updates
+      // Potentially set isAuthenticated to false if login fails and somehow it was true
+      set(state => ({...state, isAuthenticated: false, user: null, profile: null, session: null }));
+      throw error;
     }
   },
+
   signup: async (username, email, password) => {
     console.log(`📝 [SIGNUP] Attempting signup for ${email} with username ${username}`);
-    set({ isLoading: true });
+    // Signup page can set its own local loading state
     try {
-      console.log(`📝 [SIGNUP] Calling supabase.auth.signUp`);
       const { error, data } = await supabase.auth.signUp({
         email,
         password,
@@ -266,48 +218,31 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           emailRedirectTo: window.location.origin
         },
       });
-      
-      console.log(`📝 [SIGNUP] SignUp response:`, { 
-        hasError: !!error, 
-        errorMessage: error?.message,
-        hasUser: !!data?.user,
-        userId: data?.user?.id,
-        userMetadata: data?.user?.user_metadata
-      });
-      
       if (error) throw error;
+      if (!data.user) throw new Error("Signup succeeded but no user was returned");
       
-      if (!data.user) {
-        throw new Error("Signup succeeded but no user was returned");
-      }
-      
-      console.log(`📝 [SIGNUP] Signup successful, user created with ID: ${data.user.id}`);
-      
-      // The onAuthStateChange listener and subsequent fetchUserProfile call
-      // will handle creating the profile if it doesn't exist.
-      // fetchUserProfile already contains logic to create a profile if one isn't found.
-      
-      toast({ title: "Signup successful", description: "Welcome to GoonSquad! Please check your email to verify your account if required." });
+      // onAuthStateChange will handle profile creation if needed.
+      toast({ title: "Signup successful", description: "Please check your email to verify your account if required." });
     } catch (error: any) {
       console.error("📝 [SIGNUP] Signup error:", error);
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
-      set({ isLoading: false });
+      set(state => ({...state, isAuthenticated: false, user: null, profile: null, session: null }));
       throw error;
     }
   },
 
   logout: async () => {
     console.log("🚪 [LOGOUT] Logging out user");
-    set({ isLoading: true });
     try {
       await supabase.auth.signOut();
-      console.log("🚪 [LOGOUT] Logout successful");
-      // onAuthStateChange will set user/profile to null and isLoading to false.
+      // onAuthStateChange will set user/profile to null, isAuthenticated to false.
+      // It will also ensure isLoadingAuth and isFetchingProfile are false.
       toast({ title: "Logged out", description: "You have been logged out." });
     } catch (error: any) {
       console.error("🚪 [LOGOUT] Logout error:", error);
       toast({ title: "Logout failed", description: error.message, variant: "destructive" });
-      set({ isLoading: false }); // Error, so explicitly set isLoading false
+      // Force clear state on error too
+      set({ ...initialState, isLoadingAuth: false, isFetchingProfile: false });
       throw error;
     }
   },
@@ -316,36 +251,20 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     const user = get().user;
     if (!user) return;
     
-    console.log(`📊 [COUNT] Updating weekly count for user ${user.id}`);
-    // Optimistically update profile for instant UI feedback, or wait for refetch
-    // For simplicity, we'll refetch.
     try {
       const { error } = await supabase.rpc(
         'increment_relapse_count', 
         { p_user_id: user.id }
       );
-      
       if (error) throw error;
-      
-      console.log(`📊 [COUNT] Weekly count updated, refetching profile`);
       await get().fetchUserProfile(user.id); // Refetch profile
-      toast({
-        title: "Relapse logged",
-        description: "Stay strong. Every day is a new opportunity.",
-      });
+      toast({ title: "Relapse logged" });
     } catch (error: any) {
       console.error("📊 [COUNT] Error updating count:", error);
-      toast({
-        title: "Error updating count",
-        description: error.message || "An unknown error occurred",
-        variant: "destructive",
-      });
+      toast({ title: "Error updating count", variant: "destructive" });
     }
   },
-  resetLoading: () => {
-    console.log("⚠️ [AUTH] Force resetting loading state");
-    set({isLoading: false});
-  }
+  // resetLoading is no longer needed with the new isLoadingAuth logic
 }));
 
 // Initialize authentication listeners when the store is created/imported.

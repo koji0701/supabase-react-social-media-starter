@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
-import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
+import { Link, useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
 import AuthLayout from "@/components/layout/AuthLayout";
 
 import { z } from "zod";
@@ -29,17 +29,18 @@ type FormData = z.infer<typeof formSchema>;
 const Login = () => {
   console.log("🔄 [LOGIN PAGE] Rendering Login component");
   const login = useAuthStore((state) => state.login);
-  const fetchUserProfile = useAuthStore((state) => state.fetchUserProfile);
   const user = useAuthStore((state) => state.user);
-  const resetLoading = useAuthStore((state) => state.resetLoading);
-  const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth);
+  const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const profile = useAuthStore((state) => state.profile);
-  const navigate = useNavigate(); // For navigation
-  const [error, setError] = useState<string | null>(null); // Local form error
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Local submitting state for button
+  // fetchUserProfile is primarily handled by authStore's onAuthStateChange now
+  // const fetchUserProfile = useAuthStore((state) => state.fetchUserProfile); 
+
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
-  // Track component mount and render stats
   useEffect(() => {
     console.log("🔄 [LOGIN PAGE] Component mounted");
     return () => {
@@ -48,47 +49,28 @@ const Login = () => {
   }, []);
   
   useEffect(() => {
-    // Debug logging
     console.log("🔄 [LOGIN PAGE] Auth state changed:", { 
       isAuthenticated, 
-      isAuthLoading, 
+      isLoadingAuth, 
+      isFetchingProfile,
       hasProfile: !!profile,
       hasUser: !!user,
       userId: user?.id,
-      profileData: profile ? {
-        id: profile.id,
-        username: profile.username,
-        email: profile.email 
-      } : null
     });
     
-    // If we're authenticated but don't have a profile, try fetching it directly
-    if (isAuthenticated && user && !profile && !isAuthLoading) {
-      console.log("🔄 [LOGIN PAGE] Authenticated but no profile, fetching profile manually");
-      fetchUserProfile(user.id).catch(err => {
-        console.error("🔄 [LOGIN PAGE] Manual profile fetch failed:", err);
-      });
-      return;
-    }
-    
-    // Handle navigation when authenticated
-    if (isAuthenticated && profile && !isAuthLoading) {
+    // Navigate if authenticated, profile is loaded (or not strictly required here), and auth isn't in an initial loading state.
+    // The profile check is important to ensure all user data is ready before redirecting.
+    if (isAuthenticated && profile && !isLoadingAuth && !isFetchingProfile) {
       console.log("🚀 [NAVIGATION] Redirecting to dashboard from Login");
       navigate('/dashboard');
+    } else if (isAuthenticated && !profile && !isLoadingAuth && !isFetchingProfile && user) {
+      // This case might indicate an issue if profile should always exist for an authenticated user.
+      // For now, we rely on onAuthStateChange to fetch it.
+      // If it gets stuck here, it means profile fetch might have failed or not triggered.
+      console.log("🔄 [LOGIN PAGE] Authenticated, no profile yet, but not loading. Waiting for profile or further action.");
     }
-  }, [isAuthenticated, isAuthLoading, profile, navigate, user, fetchUserProfile]);
-  
-  // Force reset loading state if stuck
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isAuthLoading) {
-        console.log("⚠️ [LOGIN PAGE] Detected stuck loading state, resetting");
-        resetLoading();
-      }
-    }, 10000); // 10 second safety timeout
-    
-    return () => clearTimeout(timer);
-  }, [isAuthLoading, resetLoading]);
+
+  }, [isAuthenticated, isLoadingAuth, isFetchingProfile, profile, user, navigate]);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -103,13 +85,10 @@ const Login = () => {
     setError(null);
     setIsSubmitting(true);
     try {
-      console.log("🔑 [LOGIN PAGE] Calling login function");
       await login(data.email, data.password);
-      // No need to navigate here - the useEffect will handle it
-      console.log("🔑 [LOGIN PAGE] Login function returned successfully");
+      // Navigation is handled by the useEffect hook based on auth state changes
+      console.log("🔑 [LOGIN PAGE] Login function call succeeded. Waiting for auth state change.");
     } catch (err) {
-      // Error is already toasted by the authStore.
-      // Set local error for inline display if needed.
       console.error("🔑 [LOGIN PAGE] Login error in component:", err);
       if (err instanceof Error) {
         setError(err.message);
@@ -117,18 +96,20 @@ const Login = () => {
         setError("An unknown error occurred during login.");
       }
     } finally {
-      console.log("🔑 [LOGIN PAGE] Login submission complete, resetting local submit state");
       setIsSubmitting(false);
     }
   };
   
-  // Show loading state if already authenticated
-  if (isAuthenticated && isAuthLoading) {
-    console.log("🔄 [LOGIN PAGE] Rendering authenticated loading state");
+  // Show a generic loading state if initial auth check is happening,
+  // or if authenticated and profile is being fetched.
+  if (isLoadingAuth || (isAuthenticated && isFetchingProfile)) {
+    console.log("🔄 [LOGIN PAGE] Rendering global loading state (auth/profile)");
     return (
       <AuthLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-lg">Loading your account...</p>
+          <p className="text-lg">
+            {isLoadingAuth ? "Initializing session..." : "Loading your account..."}
+          </p>
         </div>
       </AuthLayout>
     );
@@ -158,7 +139,7 @@ const Login = () => {
                       type="email"
                       placeholder="you@example.com"
                       {...field}
-                      disabled={isSubmitting || isAuthLoading}
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormMessage />
@@ -177,7 +158,7 @@ const Login = () => {
                       type="password"
                       placeholder="••••••••"
                       {...field}
-                      disabled={isSubmitting || isAuthLoading}
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormMessage />
@@ -194,9 +175,9 @@ const Login = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting || isAuthLoading}
+              disabled={isSubmitting}
             >
-              {(isSubmitting || isAuthLoading) ? (
+              {isSubmitting ? (
                 "Signing in..."
               ) : (
                 <>
