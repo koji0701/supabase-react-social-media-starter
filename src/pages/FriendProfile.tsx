@@ -140,7 +140,7 @@ const FriendProfile = () => {
           </div>
         </div>
         
-        <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
+        <Card className="vercel-card">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center md:space-x-6 text-center md:text-left">
               <Avatar
@@ -154,7 +154,7 @@ const FriendProfile = () => {
                 <h2 className="text-2xl font-bold">{friendProfile.username}</h2>
                 
                 <div className="flex items-center mt-2 justify-center md:justify-start">
-                  <Award className="h-4 w-4 mr-1 text-goon-purple" />
+                  <Award className="h-4 w-4 mr-1 text-vercel-purple" />
                   <span className="text-sm">
                     {friendProfile.streakDays} day streak
                   </span>
@@ -219,7 +219,7 @@ const FriendProfile = () => {
             <CardContent>
               <div className="text-center py-4">
                 <span className="text-muted-foreground block">Total Relapses</span>
-                <span className="text-4xl font-bold text-goon-purple block mt-2">
+                <span className="text-4xl font-bold text-vercel-purple block mt-2">
                   {friendProfile.weeklyCount}
                 </span>
               </div>

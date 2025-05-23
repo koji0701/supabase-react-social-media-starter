@@ -30,7 +30,6 @@ const Login = () => {
   console.log("🔄 [LOGIN PAGE] Rendering Login component");
   const login = useAuthStore((state) => state.login);
   const user = useAuthStore((state) => state.user);
-  // const isLoadingAuth = useAuthStore((state) => state.isLoadingAuth); // REMOVED
   const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const profile = useAuthStore((state) => state.profile);
@@ -38,37 +37,33 @@ const Login = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  
+
   useEffect(() => {
     console.log("🔄 [LOGIN PAGE] Component mounted");
     return () => {
       console.log("🔄 [LOGIN PAGE] Component unmounting");
     };
   }, []);
-  
+
   useEffect(() => {
-    console.log("🔄 [LOGIN PAGE] Auth state changed:", { 
-      isAuthenticated, 
-      // isLoadingAuth, // REMOVED
+    console.log("🔄 [LOGIN PAGE] Auth state changed:", {
+      isAuthenticated,
       isFetchingProfile,
       hasProfile: !!profile,
       hasUser: !!user,
       userId: user?.id,
     });
-    
-    // Navigate if authenticated, profile is loaded, and profile isn't currently being fetched.
+
     if (isAuthenticated && profile && !isFetchingProfile) {
       console.log("🚀 [NAVIGATION] Redirecting to dashboard from Login");
-      navigate('/dashboard');
+      navigate("/dashboard");
     } else if (isAuthenticated && !profile && !isFetchingProfile && user) {
-      // This case: authenticated, no profile, not fetching.
-      // This could mean profile fetch failed or hasn't started for some reason.
-      // authStore's onAuthStateChange should handle profile fetching.
-      console.log("🔄 [LOGIN PAGE] Authenticated, no profile yet, not fetching. Waiting for profile or further action.");
+      console.log(
+        "🔄 [LOGIN PAGE] Authenticated, no profile yet, not fetching. Waiting for profile or further action."
+      );
     }
-
   }, [isAuthenticated, isFetchingProfile, profile, user, navigate]);
-  
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -76,15 +71,16 @@ const Login = () => {
       password: "",
     },
   });
-  
+
   const onSubmit = async (data: FormData) => {
     console.log(`🔑 [LOGIN PAGE] Submitting login form for ${data.email}`);
     setError(null);
     setIsSubmitting(true);
     try {
       await login(data.email, data.password);
-      // Navigation is handled by the useEffect hook based on auth state changes
-      console.log("🔑 [LOGIN PAGE] Login function call succeeded. Waiting for auth state change.");
+      console.log(
+        "🔑 [LOGIN PAGE] Login function call succeeded. Waiting for auth state change."
+      );
     } catch (err) {
       console.error("🔑 [LOGIN PAGE] Login error in component:", err);
       if (err instanceof Error) {
@@ -96,22 +92,18 @@ const Login = () => {
       setIsSubmitting(false);
     }
   };
-  
-  // Show a loading state if authenticated and profile is being fetched.
-  // The "Initializing session..." part is removed as session is not persisted.
+
   if (isAuthenticated && isFetchingProfile) {
     console.log("🔄 [LOGIN PAGE] Rendering loading state (profile fetch)");
     return (
       <AuthLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-lg">
-            Loading your account...
-          </p>
+          <p className="text-lg">Loading your account...</p>
         </div>
       </AuthLayout>
     );
   }
-  
+
   console.log("🔄 [LOGIN PAGE] Rendering login form");
   return (
     <AuthLayout>
@@ -122,7 +114,7 @@ const Login = () => {
             Enter your credentials to access your account
           </p>
         </div>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -143,7 +135,7 @@ const Login = () => {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="password"
@@ -162,16 +154,26 @@ const Login = () => {
                 </FormItem>
               )}
             />
-            
+
             {error && (
               <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
                 {error}
               </div>
             )}
-            
+
+            {/* 🔽 UPDATED BUTTON COLOUR 🔽 */}
             <Button
               type="submit"
-              className="w-full"
+              className="
+                w-full
+                bg-vercel-purple-dark
+                hover:bg-vercel-purple
+                text-white
+                focus-visible:outline
+                focus-visible:outline-2
+                focus-visible:outline-offset-2
+                focus-visible:outline-vercel-purple-dark
+              "
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -184,11 +186,11 @@ const Login = () => {
             </Button>
           </form>
         </Form>
-        
+
         <div className="text-center text-sm">
           <p>
             Don't have an account?{" "}
-            <Link to="/signup" className="text-goon-purple hover:underline">
+            <Link to="/signup" className="text-vercel-purple hover:underline">
               Sign up
             </Link>
           </p>

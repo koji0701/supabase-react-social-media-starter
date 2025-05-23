@@ -52,11 +52,11 @@ const Profile = () => {
               View your progress and statistics.
             </p>
           </div>
-          <User className="h-8 w-8 text-goon-purple" />
+          <User className="h-8 w-8 text-vercel-purple" />
         </div>
         
         {/* Profile Header with Avatar */}
-        <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
+        <Card className="vercel-card">
           <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row items-center lg:space-x-6 text-center lg:text-left space-y-6 lg:space-y-0">
               {/* Avatar Section */}
@@ -74,7 +74,7 @@ const Profile = () => {
                 <p className="text-muted-foreground">{profile.email}</p>
                 
                 <div className="flex items-center mt-2 justify-center lg:justify-start">
-                  <Award className="h-4 w-4 mr-1 text-goon-purple" />
+                  <Award className="h-4 w-4 mr-1 text-vercel-purple" />
                   <span className="text-sm">Active Member</span> 
                 </div>
               </div>
@@ -114,12 +114,12 @@ const Profile = () => {
             <CardContent>
               <div className="text-center py-4">
                 <span className="text-muted-foreground block">Total Relapses</span>
-                <span className="text-4xl font-bold text-goon-purple block mt-2">
+                <span className="text-4xl font-bold text-vercel-purple block mt-2">
                   {profile.weeklyCount}
                 </span>
                 <Button 
                   variant="link" 
-                  className="mt-4 text-goon-purple"
+                  className="mt-4 text-vercel-purple"
                   onClick={() => navigate("/leaderboard")}
                 >
                   View Leaderboard <ArrowRight className="ml-1 h-4 w-4" />
