@@ -14,8 +14,8 @@
     --popover: 0 0% 4%;
     --popover-foreground: 0 0% 98%;
 
-    /* Modern purple primary - adjusted to be less neon */
-    --primary: 262 70% 55%;
+    /* Soft lavender primary drawn from dark‑mode palette */
+    --primary: 266 100% 89%;
     --primary-foreground: 0 0% 100%;
 
     /* Subtle grays for secondary elements */
@@ -35,7 +35,7 @@
     /* Subtle borders and inputs */
     --border: 0 0% 15%;
     --input: 0 0% 15%;
-    --ring: 262 70% 55%;
+    --ring: 266 100% 89%;
 
     --radius: 0.5rem;
   }
@@ -65,7 +65,7 @@
   }
   
   .text-gradient {
-    @apply bg-gradient-to-br from-vercel-purple via-vercel-blue to-vercel-purple bg-clip-text text-transparent;
+    @apply bg-gradient-to-br from-vercel-blue via-vercel-purple to-vercel-purple-dark bg-clip-text text-transparent;
   }
 
   /* New Vercel-inspired utilities */
