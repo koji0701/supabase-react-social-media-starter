@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
+import { Avatar } from "@/components/avatar";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ const Dashboard = () => {
       hasProfile: !!profile,
     });
     return () => console.log("🔄 [DASHBOARD] Component unmounting");
-  }, []);
+  }, [isAuthenticated, isFetchingProfile, profile]);
 
   useEffect(() => {
     console.log("🔄 [DASHBOARD] Effect triggered by state change:", {
@@ -198,9 +199,25 @@ const Dashboard = () => {
 
       <div className="space-y-8 animate-fade-in">
         {/* HEADER */}
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Track your progress and stay accountable.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+            <p className="text-muted-foreground">Track your progress and stay accountable.</p>
+          </div>
+          
+          {/* User Avatar in Header */}
+          <div className="flex items-center space-x-3">
+            <Avatar
+              src={profile.avatarUrl}
+              fallback={profile.username}
+              size={48}
+              className="border-2 border-goon-purple/30"
+            />
+            <div className="hidden sm:block text-right">
+              <p className="font-medium">{profile.username}</p>
+              <p className="text-sm text-muted-foreground">{streakDays} day streak</p>
+            </div>
+          </div>
         </div>
 
         {/* WEEKLY COUNT CARD */}
@@ -272,14 +289,19 @@ const Dashboard = () => {
               )}
 
               {topFriends.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {topFriends.map((friend, index) => (
                     <div key={friend.id} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-muted-foreground">{index + 1}.</span>
-                        <span>{friend.username}</span>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-muted-foreground font-medium w-4">{index + 1}.</span>
+                        <Avatar
+                          src={friend.avatarUrl}
+                          fallback={friend.username}
+                          size={32}
+                        />
+                        <span className="font-medium">{friend.username}</span>
                       </div>
-                      <span className="font-medium">{friend.weeklyCount}</span>
+                      <span className="font-medium text-goon-purple">{friend.weeklyCount}</span>
                     </div>
                   ))}
                 </div>
