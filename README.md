@@ -52,6 +52,13 @@ The application uses two main tables and bucket storage
 - A Supabase account
 - Git
 
+### For Vibe Coders 💫
+
+- [Supabase MCP](https://supabase.com/docs/guides/getting-started/mcp): Interact with your Supabase database from Cursor, Claude, etc.
+- [Context7 MCP](https://github.com/upstash/context7): Access documentation for anything (Supabase, Shadcn, Zustand, etc.)
+- [Cursor Rules (frontend)](https://cursor.directory/optimized-nextjs-typescript-best-practices-modern-ui-ux): Use best practices for your frontend
+   **Note**: Make sure to specify React instead of Next.js 
+   
 ### 1. Clone the Repository
 
 ```bash
