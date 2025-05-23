@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client"; // Direct Supabase cl
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Avatar } from "@/components/avatar"; // Import the Avatar component
 import { 
   User, 
   Calendar, 
@@ -17,22 +18,23 @@ import {
   UserMinus
 } from "lucide-react";
 
-interface FriendProfileData { // Renamed to avoid conflict with store's Profile type
+interface FriendProfileData {
   id: string;
   username: string;
   weeklyCount: number;
   streakDays: number;
-  lastRelapse: string | null; // This is the key difference from Friend object in store
+  lastRelapse: string | null;
+  avatarUrl?: string | null; // Added to store avatar URL
 }
 
 const FriendProfile = () => {
-  const currentUser = useAuthStore((state) => state.user); // Get current user for context
+  const currentUser = useAuthStore((state) => state.user);
   const { friends, removeFriend, loading: friendsLoading } = useFriendsStore();
   const navigate = useNavigate();
   const { friendId } = useParams<{ friendId: string }>();
   
   const [friendProfile, setFriendProfile] = useState<FriendProfileData | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true); // Local loading for this specific profile
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   
   useEffect(() => {
     const fetchFriendDetails = async () => {
@@ -42,14 +44,13 @@ const FriendProfile = () => {
       }
       
       setIsLoadingProfile(true);
-      // First, check if basic info is in the friends list from the store
       const friendFromStore = friends.find(f => f.id === friendId);
 
       try {
-        // Always fetch full profile from Supabase for `last_relapse` and latest data
+        // Always fetch full profile from Supabase for `last_relapse`, latest data, and `avatar_url`
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, username, weekly_count, streak_days, last_relapse')
+          .select('id, username, weekly_count, streak_days, last_relapse, avatar_url') // Added avatar_url
           .eq('id', friendId)
           .single();
         
@@ -61,19 +62,20 @@ const FriendProfile = () => {
             username: data.username,
             weeklyCount: data.weekly_count,
             streakDays: data.streak_days,
-            lastRelapse: data.last_relapse
+            lastRelapse: data.last_relapse,
+            avatarUrl: data.avatar_url // Map avatar_url
           });
         } else if (friendFromStore) {
           // Fallback to store data if Supabase fetch fails but friend exists in list
-          // Note: lastRelapse will be null here
-          setFriendProfile({ ...friendFromStore, lastRelapse: null });
+          // Note: lastRelapse and avatarUrl will be null/undefined here
+          setFriendProfile({ ...friendFromStore, lastRelapse: null, avatarUrl: null });
         }
 
       } catch (error) {
         console.error("Error fetching friend profile:", error);
         // If Supabase fetch fails but friend was in store, use store data as fallback
         if (friendFromStore) {
-            setFriendProfile({ ...friendFromStore, lastRelapse: null });
+            setFriendProfile({ ...friendFromStore, lastRelapse: null, avatarUrl: null });
         }
       } finally {
         setIsLoadingProfile(false);
@@ -81,7 +83,7 @@ const FriendProfile = () => {
     };
     
     fetchFriendDetails();
-  }, [friendId, currentUser, friends]); // Depend on friends from store to potentially update if list changes
+  }, [friendId, currentUser, friends]);
   
   if (isLoadingProfile) {
     return (
@@ -110,7 +112,7 @@ const FriendProfile = () => {
     );
   }
   
-  const maxStreakDays = 30; // Example max for progress bar
+  const maxStreakDays = 30;
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString();
@@ -141,9 +143,13 @@ const FriendProfile = () => {
         <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center md:space-x-6 text-center md:text-left">
-              <div className="flex items-center justify-center h-24 w-24 rounded-full bg-goon-purple/20 text-goon-purple text-4xl font-medium mb-4 md:mb-0">
-                {friendProfile.username.charAt(0).toUpperCase()}
-              </div>
+              <Avatar
+                src={friendProfile.avatarUrl}
+                alt={`${friendProfile.username}'s avatar`}
+                size={96} // Corresponds to h-24 w-24
+                fallback={friendProfile.username.charAt(0).toUpperCase()}
+                className="mb-4 md:mb-0"
+              />
               <div>
                 <h2 className="text-2xl font-bold">{friendProfile.username}</h2>
                 
@@ -159,11 +165,16 @@ const FriendProfile = () => {
                     variant="outline" 
                     size="sm"
                     onClick={async () => {
+                      if (currentUser && currentUser.id === friendProfile.id) {
+                        // Potentially add a toast or console warning: cannot remove self if somehow listed as friend
+                        console.warn("Attempted to remove self from friends list via friend profile page.");
+                        return;
+                      }
                       await removeFriend(friendProfile.id);
                       navigate("/friends");
                     }}
                     className="text-destructive hover:text-destructive/80"
-                    disabled={friendsLoading}
+                    disabled={friendsLoading || (currentUser && currentUser.id === friendProfile.id)}
                     aria-label={`Remove ${friendProfile.username} as friend`}
                   >
                     <UserMinus className="h-4 w-4 mr-2" />
