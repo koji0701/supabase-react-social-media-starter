@@ -11,8 +11,7 @@ import {
   ALLOWED_FILE_TYPES, 
   IMAGE_PROCESSING_DEFAULTS 
 } from "./types";
-import { Upload, Camera, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Camera, Trash2 } from "lucide-react";
 
 export const AvatarUpload = ({
   onUpload,
@@ -21,7 +20,6 @@ export const AvatarUpload = ({
   disabled = false
 }: AvatarUploadProps) => {
   const [uploading, setUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -113,11 +111,19 @@ export const AvatarUpload = ({
     if (currentAvatarUrl) {
       try {
         console.log('🔼 [AVATAR] Removing old avatar:', currentAvatarUrl);
-        const { error: deleteError } = await supabase.storage.from('avatars').remove([currentAvatarUrl]);
-        if (deleteError) {
-          console.warn('🔼 [AVATAR] Failed to delete old avatar:', deleteError);
-        } else {
-          console.log('🔼 [AVATAR] Old avatar removed successfully');
+        // Extract the path from the full URL if needed, or use the path directly if stored that way
+        // Assuming currentAvatarUrl is the file path in storage
+        const oldFilePath = currentAvatarUrl.startsWith('http') 
+          ? new URL(currentAvatarUrl).pathname.split('/').slice(3).join('/') // Adjust if your URL structure is different
+          : currentAvatarUrl;
+
+        if (oldFilePath) {
+          const { error: deleteError } = await supabase.storage.from('avatars').remove([oldFilePath]);
+          if (deleteError) {
+            console.warn('🔼 [AVATAR] Failed to delete old avatar:', deleteError);
+          } else {
+            console.log('🔼 [AVATAR] Old avatar removed successfully');
+          }
         }
       } catch (error) {
         console.warn('🔼 [AVATAR] Error during old avatar cleanup:', error);
@@ -131,7 +137,7 @@ export const AvatarUpload = ({
       .from('avatars')
       .upload(filePath, processedBlob, {
         contentType: `image/${fileExt}`,
-        upsert: true
+        upsert: true // Consider if upsert is truly needed if old one is deleted. Might be safer.
       });
 
     if (uploadError) {
@@ -219,40 +225,11 @@ export const AvatarUpload = ({
     }
   };
 
-  // Handle click
+  // Handle click to trigger file input
   const handleClick = () => {
+    if (disabled || uploading) return;
     fileInputRef.current?.click();
   };
-
-  // Handle drag events
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDragIn = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setDragActive(true);
-    }
-  }, []);
-
-  const handleDragOut = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files);
-    }
-  }, []);
 
   // Handle avatar removal
   const handleRemoveAvatar = async () => {
@@ -260,9 +237,21 @@ export const AvatarUpload = ({
 
     try {
       setUploading(true);
+      
+      // Assuming currentAvatarUrl is the file path. If it's a full URL, extract the path.
+      const filePathToRemove = currentAvatarUrl.startsWith('http')
+        ? new URL(currentAvatarUrl).pathname.split('/').slice(3).join('/') // Adjust if URL structure differs
+        : currentAvatarUrl;
 
-      // Remove from storage
-      await supabase.storage.from('avatars').remove([currentAvatarUrl]);
+      if (filePathToRemove) {
+        // Remove from storage
+        const { error: deleteError } = await supabase.storage.from('avatars').remove([filePathToRemove]);
+        if (deleteError) {
+            console.warn('🔼 [AVATAR] Failed to delete avatar from storage during removal:', deleteError);
+            // Decide if to throw or just warn. For now, we'll try to update DB anyway.
+        }
+      }
+
 
       // Update profile in database
       const { error: updateError } = await supabase
@@ -281,7 +270,8 @@ export const AvatarUpload = ({
         description: "Your profile picture has been removed."
       });
 
-    } catch (error: any) {
+    } catch (error: any)
+     {
       console.error('Remove avatar error:', error);
       toast({
         title: "Failed to remove avatar",
@@ -295,6 +285,16 @@ export const AvatarUpload = ({
 
   return (
     <div className="flex flex-col items-center space-y-4">
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ALLOWED_FILE_TYPES.join(',')}
+        onChange={(e) => handleFileSelect(e.target.files)}
+        className="hidden"
+        disabled={disabled || uploading}
+      />
+
       {/* Avatar Preview */}
       <div className="relative">
         <Avatar
@@ -304,7 +304,7 @@ export const AvatarUpload = ({
           className="border-2 border-border"
         />
         
-        {uploading && (
+        {uploading && uploadProgress > 0 && uploadProgress < 100 && (
           <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
             <div className="text-white text-xs font-medium">
               {uploadProgress}%
@@ -313,50 +313,13 @@ export const AvatarUpload = ({
         )}
       </div>
 
-      {/* Upload Progress */}
-      {uploading && (
-        <div className="w-full max-w-xs">
+      {/* Upload Progress Bar (shown during actual upload, not just preview) */}
+      {uploading && uploadProgress > 0 && (
+        <div className="w-full max-w-[100px]"> {/* Adjusted width to be smaller */}
           <Progress value={uploadProgress} className="h-2" />
         </div>
       )}
-
-      {/* Upload Area */}
-      <div
-        className={cn(
-          "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
-          dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
-        onDragEnter={handleDragIn}
-        onDragLeave={handleDragOut}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        onClick={!disabled ? handleClick : undefined}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ALLOWED_FILE_TYPES.join(',')}
-          onChange={(e) => handleFileSelect(e.target.files)}
-          className="hidden"
-          disabled={disabled || uploading}
-        />
-        
-        <div className="space-y-2">
-          <div className="flex justify-center">
-            <Upload className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">
-              {uploading ? 'Uploading...' : 'Upload a profile picture'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Drag and drop or click to select (Max {MAX_FILE_SIZE / 1024 / 1024}MB)
-            </p>
-          </div>
-        </div>
-      </div>
-
+      
       {/* Action Buttons */}
       <div className="flex space-x-2">
         <Button
@@ -364,9 +327,10 @@ export const AvatarUpload = ({
           disabled={disabled || uploading}
           size="sm"
           variant="outline"
+          aria-label="Change profile photo"
         >
           <Camera className="h-4 w-4 mr-2" />
-          {uploading ? 'Uploading...' : 'Change Photo'}
+          {uploading && uploadProgress > 0 ? 'Uploading...' : 'Change Photo'}
         </Button>
         
         {currentAvatarUrl && (
@@ -375,6 +339,7 @@ export const AvatarUpload = ({
             disabled={disabled || uploading}
             size="sm"
             variant="outline"
+            aria-label="Remove profile photo"
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Remove
@@ -383,4 +348,4 @@ export const AvatarUpload = ({
       </div>
     </div>
   );
-}; 
+};
