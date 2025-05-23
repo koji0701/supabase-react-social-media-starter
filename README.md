@@ -22,7 +22,7 @@ SupaSocial is a feature-rich social media starter that includes:
 
 ![Database Schema](./public/database.png)
 
-The application uses two main tables:
+The application uses two main tables and bucket storage
 
 ### Profiles Table
 - `id` (UUID) - Primary key, linked to auth.users
@@ -40,6 +40,9 @@ The application uses two main tables:
 - `friend_id` (UUID) - Friendship recipient
 - `status` (TEXT) - Either 'pending' or 'accepted'
 - `created_at` & `updated_at` (TIMESTAMPTZ) - Timestamps
+
+### Storage Bucket
+- `avatars` - Profile pictures
 
 ## 🚀 Getting Started
 
