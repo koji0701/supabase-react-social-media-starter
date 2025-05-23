@@ -5,8 +5,10 @@ import type { Database } from './types';
 console.log("🔌 [SUPABASE] Initializing Supabase client");
 
 // TODO: Replace with your own Supabase URL and publishable key
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_PUBLISHABLE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+// NOTE: These are safe to expose in the frontend. Read more: https://supabase.com/docs/guides/api/api-keys
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 
 console.log(`🔌 [SUPABASE] Using URL: ${SUPABASE_URL}`);
 
