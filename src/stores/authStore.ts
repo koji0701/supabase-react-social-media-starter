@@ -10,6 +10,7 @@ interface Profile {
   weeklyCount: number;
   streakDays: number;
   lastRelapse: string | null;
+  avatarUrl: string | null;
 }
 
 interface AuthState {
@@ -28,6 +29,7 @@ interface AuthActions {
   signup: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateWeeklyCount: () => Promise<void>;
+  updateAvatarUrl: (avatarUrl: string | null) => void;
 }
 
 const initialState: AuthState = {
@@ -47,7 +49,8 @@ const createProfileObject = (data: any): Profile => {
     email: data.email,
     weeklyCount: data.weekly_count,
     streakDays: data.streak_days,
-    lastRelapse: data.last_relapse
+    lastRelapse: data.last_relapse,
+    avatarUrl: data.avatar_url
   };
 };
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
@@ -241,6 +244,18 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     } catch (error: any) {
       console.error("📊 [COUNT] Error updating count:", error);
       toast({ title: "Error updating count", description: error.message || "Failed to log relapse.", variant: "destructive" });
+    }
+  },
+
+  updateAvatarUrl: (avatarUrl: string | null) => {
+    const currentProfile = get().profile;
+    if (currentProfile) {
+      set({
+        profile: {
+          ...currentProfile,
+          avatarUrl
+        }
+      });
     }
   },
 }));

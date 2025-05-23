@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarUpload } from "@/components/avatar";
 import { 
   User, 
   Calendar, 
@@ -15,6 +16,7 @@ import {
 
 const Profile = () => {
   const profile = useAuthStore((state) => state.profile);
+  const updateAvatarUrl = useAuthStore((state) => state.updateAvatarUrl);
   const navigate = useNavigate();
   
   if (!profile) {
@@ -33,6 +35,12 @@ const Profile = () => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString();
   };
+
+  // Handle avatar upload success
+  const handleAvatarUpload = (filePath: string) => {
+    // Update the avatar URL in the store
+    updateAvatarUrl(filePath || null);
+  };
   
   return (
     <MainLayout>
@@ -47,18 +55,25 @@ const Profile = () => {
           <User className="h-8 w-8 text-goon-purple" />
         </div>
         
+        {/* Profile Header with Avatar */}
         <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row items-center md:space-x-6 text-center md:text-left">
-              <div className="flex items-center justify-center h-24 w-24 rounded-full bg-goon-purple/20 text-goon-purple text-4xl font-medium mb-4 md:mb-0">
-                {profile.username.charAt(0).toUpperCase()}
+            <div className="flex flex-col lg:flex-row items-center lg:space-x-6 text-center lg:text-left space-y-6 lg:space-y-0">
+              {/* Avatar Section */}
+              <div className="flex-shrink-0">
+                <AvatarUpload
+                  currentAvatarUrl={profile.avatarUrl}
+                  onUpload={handleAvatarUpload}
+                  size={120}
+                />
               </div>
-              <div>
+              
+              {/* Profile Info */}
+              <div className="flex-1">
                 <h2 className="text-2xl font-bold">{profile.username}</h2>
                 <p className="text-muted-foreground">{profile.email}</p>
                 
-                {/* Assuming member since can be derived from profile creation if available, or a placeholder */}
-                <div className="flex items-center mt-2 justify-center md:justify-start">
+                <div className="flex items-center mt-2 justify-center lg:justify-start">
                   <Award className="h-4 w-4 mr-1 text-goon-purple" />
                   <span className="text-sm">Active Member</span> 
                 </div>
