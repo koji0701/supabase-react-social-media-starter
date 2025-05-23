@@ -91,6 +91,13 @@ export const supabase = {
       return result;
     },
   },
+  // Add Storage API with logging
+  storage: {
+    from: (bucketName: string) => {
+      console.log(`🔌 [SUPABASE] Storage operation on bucket: ${bucketName}`);
+      return supabaseClient.storage.from(bucketName);
+    }
+  },
   // Forward other methods directly with type preservation
   from: <T extends keyof Database['public']['Tables']>(table: T) => {
     console.log(`🔌 [SUPABASE] Database query on table: ${table}`);
