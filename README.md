@@ -31,7 +31,7 @@ The application uses two main tables and bucket storage
 - `weekly_count` (INTEGER) - Weekly activity counter
 - `streak_days` (INTEGER) - Current streak tracking
 - `last_relapse` (TIMESTAMPTZ) - Last activity reset timestamp
-- `avatar_url` (TEXT) - Profile picture URL
+- `avatar_url` (TEXT) - Profile picture URL, linked to storage bucket
 - `created_at` & `updated_at` (TIMESTAMPTZ) - Timestamps
 
 ### Friendships Table
@@ -57,8 +57,8 @@ The application uses two main tables and bucket storage
 - [Supabase MCP](https://supabase.com/docs/guides/getting-started/mcp): Interact with your Supabase database from Cursor, Claude, etc.
 - [Context7 MCP](https://github.com/upstash/context7): Access documentation for anything (Supabase, Shadcn, Zustand, etc.)
 - [Cursor Rules (frontend)](https://cursor.directory/optimized-nextjs-typescript-best-practices-modern-ui-ux): Use best practices for your frontend
-   **Note**: Make sure to specify React instead of Next.js 
-   
+    - **Note**: Make sure to specify React instead of Next.js 
+
 ### 1. Clone the Repository
 
 ```bash
