@@ -9,6 +9,7 @@ interface Friend {
   username: string;
   weeklyCount: number;
   streakDays: number;
+  avatarUrl: string | null;
 }
 
 interface FriendRequest {
@@ -16,6 +17,7 @@ interface FriendRequest {
   from: {
     id: string;
     username: string;
+    avatarUrl: string | null;
   };
   status: "pending" | "accepted";
 }
@@ -96,7 +98,7 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
       if (friendIds.size > 0) {
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, username, weekly_count, streak_days')
+          .select('id, username, weekly_count, streak_days, avatar_url')
           .in('id', Array.from(friendIds));
           
         if (profilesError) throw profilesError;
@@ -105,7 +107,8 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
           id: profile.id,
           username: profile.username,
           weeklyCount: profile.weekly_count,
-          streakDays: profile.streak_days
+          streakDays: profile.streak_days,
+          avatarUrl: profile.avatar_url
         }));
         
         set({ friends });
@@ -141,7 +144,7 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
         const userIds = (requestData as any[]).map(req => req.user_id);
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, username')
+          .select('id, username, avatar_url')
           .in('id', userIds);
           
         if (profilesError) throw profilesError;
@@ -152,7 +155,8 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
             id: req.id,
             from: { 
               id: req.user_id, 
-              username: profile?.username || 'Unknown' 
+              username: profile?.username || 'Unknown',
+              avatarUrl: profile?.avatar_url || null
             },
             status: 'pending' as const
           };
@@ -595,6 +599,7 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
         from: {
           id: profile.id,
           username: profile.username,
+          avatarUrl: null
         },
         status: 'pending'
       };

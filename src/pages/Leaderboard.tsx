@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
+import { Avatar } from "@/components/avatar";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ interface RankedUser {
   username: string;
   weeklyCount: number;
   streakDays: number;
+  avatarUrl?: string | null;
   isCurrentUser: boolean;
   rank: number;
 }
@@ -41,6 +43,7 @@ const Leaderboard = () => {
         username: profile.username,
         weeklyCount: profile.weeklyCount,
         streakDays: profile.streakDays,
+        avatarUrl: profile.avatarUrl,
         isCurrentUser: true
       },
       ...friends.map(friend => ({
@@ -120,10 +123,12 @@ const Leaderboard = () => {
                       {getRankBadge(rankedUser.rank)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-goon-purple/20 text-goon-purple">
-                          {rankedUser.username.charAt(0).toUpperCase()}
-                        </div>
+                      <div className="flex items-center space-x-3">
+                        <Avatar
+                          src={rankedUser.avatarUrl}
+                          fallback={rankedUser.username}
+                          size={32}
+                        />
                         <span className={rankedUser.isCurrentUser ? "font-medium" : ""}>
                           {rankedUser.username}
                           {rankedUser.isCurrentUser && " (You)"}

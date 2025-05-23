@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useFriendsStore } from "@/stores/friendsStore";
 import MainLayout from "@/components/layout/MainLayout";
+import { Avatar } from "@/components/avatar";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -133,7 +134,7 @@ const Friends = () => {
           <Users className="h-8 w-8 text-goon-purple" />
         </div>
         
-        <Tabs defaultValue="friends">
+        <Tabs defaultValue="friends" as any>
           <TabsList className="w-full mb-6">
             <TabsTrigger value="friends" className="flex-1">
               <Users className="h-4 w-4 mr-2" /> Friends ({friends.length})
@@ -144,7 +145,7 @@ const Friends = () => {
             <TabsTrigger value="requests" className="flex-1 relative">
               <User className="h-4 w-4 mr-2" /> Requests ({friendRequests.length})
               {friendRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-2 w-2 bg-goon-purple rounded-full animate-pulse"></span>
+                <span className="absolute -top-1 -right-1 h-2 w-2 bg-goon-purple rounded-full animate-pulse" />
               )}
             </TabsTrigger>
           </TabsList>
@@ -159,9 +160,11 @@ const Friends = () => {
                     <Card key={friend.id} className="bg-secondary/30">
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="flex items-center justify-center h-10 w-10 rounded-full bg-goon-purple/20 text-goon-purple">
-                            {friend.username.charAt(0).toUpperCase()}
-                          </div>
+                          <Avatar
+                            src={friend.avatarUrl}
+                            fallback={friend.username}
+                            size={40}
+                          />
                           <div>
                             <p className="font-medium">{friend.username}</p>
                             <p className="text-sm text-muted-foreground">
@@ -230,15 +233,17 @@ const Friends = () => {
                       <Card key={result.id} className="bg-secondary/30">
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-goon-purple/20 text-goon-purple">
-                              {result.username.charAt(0).toUpperCase()}
-                            </div>
+                            <Avatar
+                              src={null} // Search results don't include avatar URLs
+                              fallback={result.username}
+                              size={40}
+                            />
                             <p className="font-medium">{result.username}</p>
                           </div>
                           <Button 
                             variant="outline"
                             size="sm"
-                            disabled={friendsLoading} // Disable if main friend operations are loading
+                            disabled={friendsLoading}
                             onClick={() => sendFriendRequest(result.username)}
                           >
                             <UserPlus className="h-4 w-4 mr-2" />
@@ -280,9 +285,11 @@ const Friends = () => {
                     <Card key={request.id} className="bg-secondary/30">
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="flex items-center justify-center h-10 w-10 rounded-full bg-goon-purple/20 text-goon-purple">
-                            {request.from.username.charAt(0).toUpperCase()}
-                          </div>
+                          <Avatar
+                            src={request.from.avatarUrl}
+                            fallback={request.from.username}
+                            size={40}
+                          />
                           <div>
                             <p className="font-medium">{request.from.username}</p>
                             <p className="text-xs text-muted-foreground">
