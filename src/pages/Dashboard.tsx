@@ -38,9 +38,7 @@ const Dashboard = () => {
   const [renderFireworksComponent, setRenderFireworksComponent] = useState(false);
   const [fireworksAreVisible, setFireworksAreVisible]           = useState(false);
 
-  // ────────────────────────────────────────────────────────────────────────────────
-  // LIFECYCLE / DATA FETCHING
-  // ────────────────────────────────────────────────────────────────────────────────
+  // ... (useEffect hooks and other logic remain the same) ...
   useEffect(() => {
     console.log("🔄 [DASHBOARD] Component mounted with auth state:", {
       isAuthenticated,
@@ -77,9 +75,6 @@ const Dashboard = () => {
     friendsLoading,
   ]);
 
-  // ────────────────────────────────────────────────────────────────────────────────
-  // FIREWORKS VISIBILITY CONTROL
-  // ────────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     let fadeInTimer: NodeJS.Timeout;
     let fadeOutTimer: NodeJS.Timeout;
@@ -108,9 +103,6 @@ const Dashboard = () => {
     };
   }, [renderFireworksComponent]);
 
-  // ────────────────────────────────────────────────────────────────────────────────
-  // EARLY RETURNS
-  // ────────────────────────────────────────────────────────────────────────────────
   if (!profile) {
     console.error(
       "❌ [DASHBOARD] Critical: Profile is null. This shouldn't happen if MainLayout/ProtectedRoute are working.",
@@ -143,14 +135,11 @@ const Dashboard = () => {
     );
   }
 
-  // ────────────────────────────────────────────────────────────────────────────────
-  // EVENT HANDLERS
-  // ────────────────────────────────────────────────────────────────────────────────
   const handleRelapseClick = async () => {
     if (isConfirming) {
       setIsConfirming(false);
       try {
-        await updateWeeklyCount(); // back‑end updates weeklyCount; SlidingNumber will animate automatically
+        await updateWeeklyCount(); 
         setFireworksAreVisible(false);
         setRenderFireworksComponent(true);
       } catch (err) {
@@ -162,9 +151,6 @@ const Dashboard = () => {
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────────────────
-  // DERIVED DATA
-  // ────────────────────────────────────────────────────────────────────────────────
   const topFriends = [...friends]
     .sort((a, b) => a.weeklyCount - b.weeklyCount)
     .slice(0, 3);
@@ -174,9 +160,6 @@ const Dashboard = () => {
 
   console.log("🔄 [DASHBOARD] Rendering main dashboard UI with profile:", profile.username);
 
-  // ────────────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ────────────────────────────────────────────────────────────────────────────────
   return (
     <MainLayout>
       {renderFireworksComponent && (
@@ -205,7 +188,6 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Track your progress and stay accountable.</p>
           </div>
           
-          {/* User Avatar in Header */}
           <div className="flex items-center space-x-3">
             <Avatar
               src={profile.avatarUrl}
@@ -224,13 +206,14 @@ const Dashboard = () => {
         <Card className="vercel-card">
           <CardContent className="pt-6">
             <div className="text-center space-y-6">
-              {/* This div specifically contains the weekly count heading and number */}
-              <div className="text-center space-y-2"> {/* Added text-center here */}
+              {/* MODIFIED PARENT DIV FOR H2 AND SLIDINGNUMBER */}
+              <div className="flex flex-col items-center space-y-2">
                 <h2 className="text-xl font-medium">This Week's Count</h2>
                 <SlidingNumber
                   key={profile.weeklyCount}
                   number={profile.weeklyCount}
-                  className="text-4xl font-bold text-vercel-purple"
+                  // MODIFIED CLASSNAME FOR SLIDINGNUMBER
+                  className="text-4xl font-bold text-vercel-purple text-center"
                   transition={{ stiffness: 200, damping: 20, mass: 0.4 }}
                 />
               </div>
@@ -248,6 +231,7 @@ const Dashboard = () => {
         </Card>
 
         {/* STREAK + LEADERBOARD */}
+        {/* ... (rest of the component remains the same) ... */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="vercel-card">
             <CardHeader>
@@ -316,4 +300,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
