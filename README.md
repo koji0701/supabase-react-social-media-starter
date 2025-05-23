@@ -4,7 +4,7 @@ A modern social media web application starter template built with React, Supabas
 
 ## 🌟 Overview
 
-![App Preview](./public/thumbnail.png)
+![App Preview](./public/SupaSocial.jpeg)
 
 SupaSocial is a feature-rich social media starter that includes:
 
