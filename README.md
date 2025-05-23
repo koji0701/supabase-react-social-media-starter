@@ -59,12 +59,27 @@ The application uses two main tables and bucket storage
 - [Cursor Rules (frontend)](https://cursor.directory/optimized-nextjs-typescript-best-practices-modern-ui-ux): Use best practices for your frontend
     - **Note**: Make sure to specify React instead of Next.js 
 
-### 1. Clone the Repository
+### 1. Create Your Own Repository
 
+There are two ways to get started with this template:
+
+#### Option A: Use as Template (Recommended)
+1. Click the green **"Use this template"** button and select **"Create a new repository"**
+2. Clone your new repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
+cd YOUR_REPOSITORY_NAME
+```
+
+#### Option B: Fork the Repository
+1. Click the **"Fork"** button in the top-right corner
+2. Clone your forked repository:
+```bash
+git clone https://github.com/YOUR_USERNAME/supabase-react-social-media-starter.git
 cd supabase-react-social-media-starter
 ```
+
+> **💡 Tip**: Using "Use this template" is recommended as it creates a clean repository without the template's commit history.
 
 ### 2. Install Dependencies
 
@@ -292,4 +307,4 @@ For additional help, please open an issue in the repository.
 
 ---
 
-**Made with ❤️** Build something amazing with this starter template.
+**Made with ❤️** Build cool stuff with this starter template.
