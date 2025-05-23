@@ -32,7 +32,8 @@ const Friends = () => {
   const profile = useAuthStore((state) => state.profile);
   const { 
     friends, 
-    friendRequests, 
+    friendRequests,
+    sentRequests,
     sendFriendRequest, 
     acceptFriendRequest, 
     declineFriendRequest, 
@@ -241,13 +242,17 @@ const Friends = () => {
                             <p className="font-medium">{result.username}</p>
                           </div>
                           <Button 
-                            variant="outline"
+                            variant={sentRequests.includes(result.id) ? "secondary" : "outline"}
                             size="sm"
-                            disabled={friendsLoading}
+                            disabled={friendsLoading || sentRequests.includes(result.id)}
                             onClick={() => sendFriendRequest(result.username)}
                           >
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Add Friend
+                            {sentRequests.includes(result.id) ? (
+                              <UserCheck className="h-4 w-4 mr-2" />
+                            ) : (
+                              <UserPlus className="h-4 w-4 mr-2" />
+                            )}
+                            {sentRequests.includes(result.id) ? "Request Sent" : "Add Friend"}
                           </Button>
                         </CardContent>
                       </Card>
