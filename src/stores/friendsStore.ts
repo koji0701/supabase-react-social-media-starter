@@ -25,6 +25,7 @@ interface FriendRequest {
 interface FriendsState {
   friends: Friend[];
   friendRequests: FriendRequest[];
+  sentRequests: string[]; // Array of user IDs to whom we've sent pending requests
   loading: boolean; // For friends-specific operations
   realtimeStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
   subscriptions: RealtimeChannel[];
@@ -35,6 +36,7 @@ interface FriendsState {
 interface FriendsActions {
   refreshFriends: () => Promise<void>;
   refreshFriendRequests: () => Promise<void>;
+  refreshSentRequests: () => Promise<void>; // New method to refresh sent requests
   searchUsers: (query: string) => Promise<{ id: string; username: string }[]>;
   sendFriendRequest: (username: string) => Promise<void>;
   acceptFriendRequest: (requestId: string) => Promise<void>;
@@ -53,6 +55,7 @@ interface FriendsActions {
 const initialState: FriendsState = {
   friends: [],
   friendRequests: [],
+  sentRequests: [],
   loading: false,
   realtimeStatus: 'disconnected',
   subscriptions: [],
@@ -174,6 +177,34 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
     }
   },
 
+  refreshSentRequests: async () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    
+    set({ loading: true });
+    try {
+      const { data: sentRequestsData, error } = await supabase
+        .from('friendships')
+        .select('friend_id')
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+        
+      if (error) throw error;
+      
+      if (sentRequestsData && sentRequestsData.length > 0) {
+        const sentRequestIds = (sentRequestsData as any[]).map(req => req.friend_id);
+        set({ sentRequests: sentRequestIds });
+      } else {
+        set({ sentRequests: [] });
+      }
+    } catch (error) {
+      console.error('Error fetching sent requests:', error);
+      toast({ title: 'Error', description: 'Failed to load sent requests', variant: 'destructive' });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
   searchUsers: async (query: string) => {
     const currentUser = useAuthStore.getState().user;
     if (!currentUser || !query.trim()) return [];
@@ -282,6 +313,12 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
       if (error) throw error;
       
       console.log("🔄 [SEND_REQUEST] Friend request inserted successfully:", insertResult);
+      
+      // Update sentRequests state to include the new recipient
+      set(state => ({
+        sentRequests: [...state.sentRequests, (userData as any).id]
+      }));
+      
       toast({ title: 'Request sent', description: `Friend request sent to ${targetUsername}` });
     } catch (error) {
       console.error('Error sending friend request:', error);
@@ -308,6 +345,7 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
       toast({ title: 'Request accepted', description: 'You are now friends!' });
       await get().refreshFriends();
       await get().refreshFriendRequests();
+      await get().refreshSentRequests();
     } catch (error) {
       console.error('Error accepting friend request:', error);
       toast({ title: 'Error', description: 'Failed to accept request', variant: 'destructive' });
@@ -332,6 +370,7 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
       
       toast({ title: 'Request declined' });
       await get().refreshFriendRequests();
+      await get().refreshSentRequests();
     } catch (error) {
       console.error('Error declining friend request:', error);
       toast({ title: 'Error', description: 'Failed to decline request', variant: 'destructive' });
@@ -510,6 +549,8 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
             if ((payload.new as any)?.status === 'accepted') {
               get().refreshFriends();
             }
+            // Also refresh sent requests to update UI state
+            get().refreshSentRequests();
           }
         )
         .subscribe((status, err) => {
@@ -652,6 +693,8 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
       }));
       get().refreshFriends();
     }
+    // Refresh sent requests to update UI state
+    get().refreshSentRequests();
   },
 
   handleFriendRequestDelete: (payload: any) => {
@@ -664,6 +707,8 @@ export const useFriendsStore = create<FriendsState & FriendsActions>((set, get) 
     set(state => ({
       friendRequests: state.friendRequests.filter(req => req.id !== deletedFriendship.id)
     }));
+    // Also refresh sent requests to update UI state
+    get().refreshSentRequests();
   },
 
   retryConnection: async () => {
@@ -690,6 +735,7 @@ useAuthStore.subscribe(
       const friendsStore = useFriendsStore.getState();
       friendsStore.refreshFriends();
       friendsStore.refreshFriendRequests();
+      friendsStore.refreshSentRequests();
       friendsStore.startRealtimeSubscriptions();
     } else if (!currentUser && previousUser) {
       console.log("[FriendsStore] User logged out, stopping realtime and resetting friends state.");
