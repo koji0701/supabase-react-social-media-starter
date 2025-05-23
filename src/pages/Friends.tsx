@@ -132,7 +132,7 @@ const Friends = () => {
               )}
             </div> */}
           </div>
-          <Users className="h-8 w-8 text-goon-purple" />
+          <Users className="h-8 w-8 text-vercel-purple" />
         </div>
         
         <Tabs defaultValue="friends" as any>
@@ -146,7 +146,7 @@ const Friends = () => {
             <TabsTrigger value="requests" className="flex-1 relative">
               <User className="h-4 w-4 mr-2" /> Requests ({friendRequests.length})
               {friendRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-2 w-2 bg-goon-purple rounded-full animate-pulse" />
+                <span className="absolute -top-1 -right-1 h-2 w-2 bg-vercel-purple rounded-full animate-pulse" />
               )}
             </TabsTrigger>
           </TabsList>

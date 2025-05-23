@@ -1,37 +1,41 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
+    /* Deep black backgrounds inspired by Vercel */
+    --background: 0 0% 0%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 0 0% 4%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3.9%;
+    --popover: 0 0% 4%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 252 84% 75%;
+    /* Modern purple primary - adjusted to be less neon */
+    --primary: 262 70% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3.7% 15.9%;
+    /* Subtle grays for secondary elements */
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 240 4.9% 13.9%;
+    --accent: 0 0% 6%;
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    /* Modern red for destructive actions */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 252 84% 75%;
+    /* Subtle borders and inputs */
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 262 70% 55%;
 
     --radius: 0.5rem;
   }
@@ -42,7 +46,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-goon-deep-bg text-foreground antialiased;
+    @apply bg-vercel-black text-foreground antialiased;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
   
@@ -53,7 +57,7 @@
 
 @layer utilities {
   .glass-morphism {
-    @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)];
+    @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)];
   }
   
   .neo-blur {
@@ -61,6 +65,19 @@
   }
   
   .text-gradient {
-    @apply bg-gradient-to-br from-goon-purple via-goon-purple/90 to-goon-purple/70 bg-clip-text text-transparent;
+    @apply bg-gradient-to-br from-vercel-purple via-vercel-blue to-vercel-purple bg-clip-text text-transparent;
+  }
+
+  /* New Vercel-inspired utilities */
+  .vercel-card {
+    @apply bg-vercel-gray-900 border border-vercel-gray-800 rounded-lg p-6 shadow-lg hover:border-vercel-gray-700 transition-colors;
+  }
+  
+  .vercel-button {
+    @apply bg-vercel-gray-800 hover:bg-vercel-gray-700 border border-vercel-gray-700 hover:border-vercel-gray-600 text-white transition-all duration-200;
+  }
+  
+  .vercel-input {
+    @apply bg-vercel-gray-900 border border-vercel-gray-800 focus:border-vercel-gray-600 text-white placeholder:text-vercel-gray-400;
   }
 }

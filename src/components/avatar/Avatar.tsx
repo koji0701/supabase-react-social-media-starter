@@ -98,7 +98,7 @@ export const Avatar = ({
       )}
       
       {/* Fallback to initials */}
-      <AvatarFallback className="bg-goon-purple/20 text-goon-purple font-medium">
+      <AvatarFallback className="bg-vercel-purple/20 text-vercel-purple font-medium">
         {getFallbackText()}
       </AvatarFallback>
     </RadixAvatar>

@@ -211,7 +211,7 @@ const Dashboard = () => {
               src={profile.avatarUrl}
               fallback={profile.username}
               size={48}
-              className="border-2 border-goon-purple/30"
+              className="border-2 border-vercel-purple/30"
             />
             <div className="hidden sm:block text-right">
               <p className="font-medium">{profile.username}</p>
@@ -221,15 +221,16 @@ const Dashboard = () => {
         </div>
 
         {/* WEEKLY COUNT CARD */}
-        <Card className="bg-goon-charcoal/30 border-goon-charcoal/50">
+        <Card className="vercel-card">
           <CardContent className="pt-6">
             <div className="text-center space-y-6">
-              <div className="space-y-2">
+              {/* This div specifically contains the weekly count heading and number */}
+              <div className="text-center space-y-2"> {/* Added text-center here */}
                 <h2 className="text-xl font-medium">This Week's Count</h2>
                 <SlidingNumber
                   key={profile.weeklyCount}
                   number={profile.weeklyCount}
-                  className="text-4xl font-bold text-goon-purple"
+                  className="text-4xl font-bold text-vercel-purple"
                   transition={{ stiffness: 200, damping: 20, mass: 0.4 }}
                 />
               </div>
@@ -248,7 +249,7 @@ const Dashboard = () => {
 
         {/* STREAK + LEADERBOARD */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
+          <Card className="vercel-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center">
                 <Calendar className="h-5 w-5 mr-2" /> Current Streak
@@ -263,12 +264,12 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="vercel-card">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Leaderboard</CardTitle>
               <Button
                 variant="ghost"
-                className="text-goon-purple hover:text-goon-purple/80"
+                className="text-vercel-purple hover:text-vercel-purple/80"
                 onClick={() => navigate("/leaderboard")}
               >
                 View All <ArrowRight className="ml-1 h-4 w-4" />
@@ -301,7 +302,7 @@ const Dashboard = () => {
                         />
                         <span className="font-medium">{friend.username}</span>
                       </div>
-                      <span className="font-medium text-goon-purple">{friend.weeklyCount}</span>
+                      <span className="font-medium text-vercel-purple">{friend.weeklyCount}</span>
                     </div>
                   ))}
                 </div>

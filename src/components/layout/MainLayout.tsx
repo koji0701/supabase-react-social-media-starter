@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore"; 
 
@@ -85,7 +86,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   if (isAuthenticated && isFetchingProfile && !profile) {
     console.log("⚠️ [LAYOUT] Loading profile data in MainLayout...");
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
+      <div className="flex flex-col items-center justify-center h-screen bg-vercel-black">
         <p className="text-lg">Loading account details...</p>
       </div>
     );
@@ -95,8 +96,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   if (isAuthenticated && !profile && !isFetchingProfile) {
     console.log("⚠️ [LAYOUT] No profile data available after loading, showing error/refresh UI.");
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
-        <div className="text-center space-y-4 p-6 bg-goon-charcoal/30 rounded-lg border border-goon-charcoal/50 max-w-md">
+      <div className="flex flex-col items-center justify-center h-screen bg-vercel-black">
+        <div className="text-center space-y-4 p-6 vercel-card max-w-md">
           <h2 className="text-xl font-semibold">Profile Not Found</h2>
           <p className="text-muted-foreground">
             Your profile information couldn't be loaded. This might be a temporary issue or your profile data is missing.
@@ -126,7 +127,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   if (!profile) {
     console.error("⚠️ [LAYOUT] Critical: Profile is null when it should not be (authenticated, not fetching). Rendering minimal error.");
     return (
-         <div className="flex flex-col items-center justify-center h-screen bg-goon-deep-bg">
+         <div className="flex flex-col items-center justify-center h-screen bg-vercel-black">
             <p className="text-lg text-destructive">An unexpected error occurred loading your profile.</p>
              <Button variant="outline" onClick={handleLogout} className="mt-4">Logout and Retry</Button>
         </div>
@@ -136,10 +137,10 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   console.log(`✅ [LAYOUT] Rendering layout with profile: ${profile.username}`);
 
   return (
-    <div className="flex h-screen bg-goon-deep-bg">
+    <div className="flex h-screen bg-vercel-black">
       {/* Sidebar for desktop */}
-      <div className="hidden md:flex w-64 flex-col bg-gradient-to-b from-goon-charcoal/50 to-transparent backdrop-blur-md border-r border-white/5">
-        <div className="flex items-center justify-center h-16 border-b border-white/5">
+      <div className="hidden md:flex w-64 flex-col bg-vercel-gray-900 border-r border-vercel-gray-800">
+        <div className="flex items-center justify-center h-16 border-b border-vercel-gray-800">
           <h1 className="text-xl font-bold text-gradient">SupaSocial</h1>
         </div>
         <div className="flex flex-col flex-grow p-4 space-y-2">
@@ -149,8 +150,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               variant={isActive(item.path) ? "default" : "ghost"}
               className={`justify-start ${
                 isActive(item.path)
-                  ? "bg-goon-purple/20 text-goon-purple hover:bg-goon-purple/30"
-                  : "text-goon-gray hover:text-white hover:bg-muted"
+                  ? "bg-vercel-purple/20 text-vercel-purple hover:bg-vercel-purple/30 border-vercel-purple/30"
+                  : "text-vercel-gray-400 hover:text-white hover:bg-vercel-gray-800"
               }`}
               onClick={() => navigate(item.path)}
             >
@@ -161,19 +162,19 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <div className="flex-grow" />
           <Button
             variant="ghost"
-            className="justify-start text-goon-gray hover:text-white hover:bg-muted"
+            className="justify-start text-vercel-gray-400 hover:text-white hover:bg-vercel-gray-800"
             onClick={handleLogout}
           >
             <LogOut className="h-5 w-5" />
             <span className="ml-2">Logout</span>
           </Button>
         </div>
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 border-t border-vercel-gray-800">
           <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-goon-purple/20 text-goon-purple">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-vercel-purple/20 text-vercel-purple ring-1 ring-vercel-purple/30">
               {profile?.username ? profile.username.charAt(0).toUpperCase() : "?"}
             </div>
-            <div className="font-medium text-sm text-goon-gray truncate">
+            <div className="font-medium text-sm text-vercel-gray-300 truncate">
               {profile?.username || "User"}
             </div>
           </div>
@@ -181,14 +182,14 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       </div>
       
       {/* Mobile navbar at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 md:hidden bg-goon-charcoal border-t border-white/10 z-50">
+      <div className="fixed bottom-0 left-0 right-0 md:hidden bg-vercel-gray-900 border-t border-vercel-gray-800 z-50">
         <div className="flex items-center justify-around">
           {navItems.map((item) => (
             <Button
               key={item.path}
               variant="ghost"
               size="icon"
-              className={`py-4 ${ isActive(item.path) ? "text-goon-purple" : "text-goon-gray" }`}
+              className={`py-4 ${ isActive(item.path) ? "text-vercel-purple" : "text-vercel-gray-400" }`}
               onClick={() => navigate(item.path)}
             >
               {item.icon}

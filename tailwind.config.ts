@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -53,14 +52,45 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// Modern Vercel-inspired color palette
+				vercel: {
+					// Deep blacks and grays
+					'black': '#000000',
+					'gray-900': '#0a0a0a',
+					'gray-800': '#171717',
+					'gray-700': '#262626',
+					'gray-600': '#404040',
+					'gray-500': '#525252',
+					'gray-400': '#737373',
+					'gray-300': '#a3a3a3',
+					'gray-200': '#d4d4d4',
+					'gray-100': '#f5f5f5',
+					
+					// Accent colors
+					'blue': '#0070f3',
+					'blue-dark': '#0061d5',
+					'purple': '#6A4DCD',
+					'purple-dark': '#533AAB',
+					'green': '#00d924',
+					'green-dark': '#00b01e',
+					'orange': '#ff6600',
+					'orange-dark': '#e55a00',
+					'red': '#ee0000',
+					'red-dark': '#dc2626',
+					
+					// Special
+					'white': '#ffffff',
+					'off-white': '#fafafa',
+				},
+				// Keep existing goon colors for backward compatibility but update them
 				goon: {
-					purple: '#9b87f5',
-					'dark-purple': '#7E69AB',
-					'deep-bg': '#1A1F2C',
-					gray: '#8E9196',
-					charcoal: '#403E43',
-					white: '#FFFFFF',
-					'dark-charcoal': '#221F26',
+					purple: '#6A4DCD',
+					'dark-purple': '#533AAB',
+					'deep-bg': '#000000',
+					gray: '#737373',
+					charcoal: '#262626',
+					white: '#ffffff',
+					'dark-charcoal': '#171717',
 				}
 			},
 			borderRadius: {

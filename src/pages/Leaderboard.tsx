@@ -94,7 +94,7 @@ const Leaderboard = () => {
               See how you compare with your friends this week.
             </p>
           </div>
-          <Trophy className="h-8 w-8 text-goon-purple" />
+          <Trophy className="h-8 w-8 text-vercel-purple" />
         </div>
         
         {loadingFriends && rankedUsers.length === 0 ? ( // Show loading if friends data is loading and no users yet
@@ -117,7 +117,7 @@ const Leaderboard = () => {
                 {rankedUsers.map(rankedUser => (
                   <TableRow 
                     key={rankedUser.id}
-                    className={rankedUser.isCurrentUser ? "bg-goon-purple/10" : ""}
+                    className={rankedUser.isCurrentUser ? "bg-vercel-purple/10" : ""}
                   >
                     <TableCell className="font-medium">
                       {getRankBadge(rankedUser.rank)}
