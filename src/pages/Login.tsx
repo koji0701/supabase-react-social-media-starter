@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
@@ -33,17 +34,11 @@ const Login = () => {
   const isFetchingProfile = useAuthStore((state) => state.isFetchingProfile);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const profile = useAuthStore((state) => state.profile);
+  const isInitialized = useAuthStore((state) => state.isInitialized);
 
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  useEffect(() => {
-    console.log("🔄 [LOGIN PAGE] Component mounted");
-    return () => {
-      console.log("🔄 [LOGIN PAGE] Component unmounting");
-    };
-  }, []);
 
   useEffect(() => {
     console.log("🔄 [LOGIN PAGE] Auth state changed:", {
@@ -51,18 +46,15 @@ const Login = () => {
       isFetchingProfile,
       hasProfile: !!profile,
       hasUser: !!user,
-      userId: user?.id,
+      isInitialized,
     });
 
-    if (isAuthenticated && profile && !isFetchingProfile) {
+    // Only redirect if fully initialized and authenticated with profile
+    if (isInitialized && isAuthenticated && profile && !isFetchingProfile) {
       console.log("🚀 [NAVIGATION] Redirecting to dashboard from Login");
       navigate("/dashboard");
-    } else if (isAuthenticated && !profile && !isFetchingProfile && user) {
-      console.log(
-        "🔄 [LOGIN PAGE] Authenticated, no profile yet, not fetching. Waiting for profile or further action."
-      );
     }
-  }, [isAuthenticated, isFetchingProfile, profile, user, navigate]);
+  }, [isAuthenticated, isFetchingProfile, profile, user, navigate, isInitialized]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -78,9 +70,7 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       await login(data.email, data.password);
-      console.log(
-        "🔑 [LOGIN PAGE] Login function call succeeded. Waiting for auth state change."
-      );
+      console.log("🔑 [LOGIN PAGE] Login function call succeeded");
     } catch (err) {
       console.error("🔑 [LOGIN PAGE] Login error in component:", err);
       if (err instanceof Error) {
@@ -93,6 +83,7 @@ const Login = () => {
     }
   };
 
+  // Show loading if authenticated and fetching profile
   if (isAuthenticated && isFetchingProfile) {
     console.log("🔄 [LOGIN PAGE] Rendering loading state (profile fetch)");
     return (
@@ -161,7 +152,6 @@ const Login = () => {
               </div>
             )}
 
-            {/* 🔽 UPDATED BUTTON COLOUR 🔽 */}
             <Button
               type="submit"
               className="
