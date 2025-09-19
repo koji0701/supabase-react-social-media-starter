@@ -1,6 +1,6 @@
 # SupaSocial - Supabase + React Social Media Starter
 
-A modern social media web application starter template built with React, Supabase, Zustand, and Tailwind CSS. This template provides a solid foundation for building social networking applications with features like user authentication, friend management, profiles, and real-time interactions.
+A modern social media web application starter template built with React, Supabase, Zustand, and Tailwind CSS. This template provides a solid foundation for building social networking applications with features like user authentication, friend management, profiles, and real-time interactions. 
 
 > [!NOTE]
 > This project is listed on [Awesome Supabase](https://github.com/lyqht/awesome-supabase?tab=readme-ov-file)
