@@ -5,6 +5,8 @@ A modern social media web application starter template built with React, Supabas
 > [!NOTE]
 > This project is listed on [Awesome Supabase](https://github.com/lyqht/awesome-supabase?tab=readme-ov-file)
 
+Also a quick note, the Supabase project is paused at the moment - everything would work fine w your proj :) 
+
 ## 🌟 Overview
 
 ![App Preview](./public/SupaSocial.jpeg)
