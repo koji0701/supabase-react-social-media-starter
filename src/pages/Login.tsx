@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 import { useAuthStore } from "@/stores/authStore"; // Import useAuthStore
@@ -29,9 +30,16 @@ type FormData = z.infer<typeof formSchema>;
 const Login = () => {
   const login = useAuthStore((state) => state.login);
   const isAuthLoading = useAuthStore((state) => state.isLoading);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const navigate = useNavigate(); // For navigation
   const [error, setError] = useState<string | null>(null); // Local form error
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false); // Local submitting state for button
+  
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    navigate('/dashboard');
+    return null;
+  }
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
