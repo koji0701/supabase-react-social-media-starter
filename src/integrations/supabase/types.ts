@@ -53,6 +53,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           id: string
@@ -63,6 +64,7 @@ export type Database = {
           weekly_count: number
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           id: string
@@ -73,6 +75,7 @@ export type Database = {
           weekly_count?: number
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           id?: string
