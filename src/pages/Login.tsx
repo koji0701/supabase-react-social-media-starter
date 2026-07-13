@@ -131,10 +131,6 @@ const Login = () => {
               Sign up
             </Link>
           </p>
-          
-          <p className="mt-4 text-muted-foreground text-xs">
-            Demo login: demo@example.com / password
-          </p>
         </div>
       </div>
     </AuthLayout>

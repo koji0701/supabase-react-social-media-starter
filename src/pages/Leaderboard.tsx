@@ -27,21 +27,21 @@ interface RankedUser {
 }
 
 const Leaderboard = () => {
-  const { user } = useAuth();
-  const { friends } = useFriends();
+  const { profile } = useAuth();
+  const { friends, loading } = useFriends();
   const navigate = useNavigate();
   const [rankedUsers, setRankedUsers] = useState<RankedUser[]>([]);
   
   useEffect(() => {
-    if (!user) return;
+    if (!profile) return;
     
     // Combine current user with friends
     const allUsers = [
       {
-        id: user.id,
-        username: user.username,
-        weeklyCount: user.weeklyCount,
-        streakDays: user.streakDays,
+        id: profile.id,
+        username: profile.username,
+        weeklyCount: profile.weeklyCount,
+        streakDays: profile.streakDays,
         isCurrentUser: true
       },
       ...friends.map(friend => ({
@@ -65,11 +65,16 @@ const Leaderboard = () => {
     }));
     
     setRankedUsers(ranked);
-  }, [user, friends]);
+  }, [profile, friends]);
   
-  if (!user) {
-    navigate("/");
-    return null;
+  if (!profile) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-96">
+          <p>Loading leaderboard...</p>
+        </div>
+      </MainLayout>
+    );
   }
   
   const getRankBadge = (rank: number) => {
@@ -98,7 +103,11 @@ const Leaderboard = () => {
           <Trophy className="h-8 w-8 text-goon-purple" />
         </div>
         
-        {rankedUsers.length > 1 ? (
+        {loading ? (
+          <div className="text-center py-8">
+            <p>Loading leaderboard data...</p>
+          </div>
+        ) : rankedUsers.length > 1 ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
